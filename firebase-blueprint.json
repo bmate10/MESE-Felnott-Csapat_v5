@@ -1,0 +1,58 @@
+{
+  "entities": {
+    "Player": {
+      "title": "Player",
+      "description": "A tennis player in the roster",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "rank": { "type": "integer" }
+      },
+      "required": ["name", "rank"]
+    },
+    "Match": {
+      "title": "Match",
+      "description": "A scheduled match or result",
+      "type": "object",
+      "properties": {
+        "opponent": { "type": "string" },
+        "location": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "season": { "enum": ["Spring", "Fall"] },
+        "status": { "enum": ["Scheduled", "Completed"] },
+        "homeAway": { "enum": ["Home", "Away"] },
+        "teamScore": { "type": "integer" },
+        "opponentScore": { "type": "integer" },
+        "availability": {
+          "type": "object",
+          "description": "Map of player IDs to availability status: Yes, No, If Needed"
+        }
+      },
+      "required": ["opponent", "location", "date", "season", "status"]
+    },
+    "MvpVote": {
+      "title": "MVP Vote",
+      "description": "A vote for a match's MVP",
+      "type": "object",
+      "properties": {
+        "playerId": { "type": "string", "description": "ID of the player voted for" },
+        "voterId": { "type": "string", "description": "ID of the user who voted" }
+      },
+      "required": ["playerId", "voterId"]
+    }
+  },
+  "firestore": {
+    "/years/{yearId}/leagues/{leagueId}/players/{playerId}": {
+      "schema": "Player",
+      "description": "Players for a specific year and league"
+    },
+    "/years/{yearId}/leagues/{leagueId}/matches/{matchId}": {
+      "schema": "Match",
+      "description": "Matches for a specific year and league"
+    },
+    "/years/{yearId}/leagues/{leagueId}/matches/{matchId}/mvpVotes/{voteId}": {
+      "schema": "MvpVote",
+      "description": "MVP votes for a specific match"
+    }
+  }
+}

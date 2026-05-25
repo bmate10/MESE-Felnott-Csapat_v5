@@ -1,0 +1,89 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isAdmin() {
+       return isSignedIn() && (
+         exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+         (request.auth.token.email == 'bmate10@gmail.com' && request.auth.token.email_verified == true)
+       );
+    }
+
+    function isValidPlayer(data) {
+      return data.keys().hasAll(['name', 'rank']) &&
+             data.keys().size() == 2 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.rank is int && data.rank >= 1 && data.rank <= 200;
+    }
+
+    function isValidMatch(data) {
+      // Basic fields check. Map keys for optional fields like scores/availability
+      return data.keys().hasAll(['opponent', 'location', 'date', 'season', 'status', 'homeAway']) &&
+             data.opponent is string && data.opponent.size() > 0 &&
+             data.location is string && data.location.size() > 0 &&
+             data.date is timestamp &&
+             data.season in ['Spring', 'Fall'] &&
+             data.status in ['Scheduled', 'Completed'] &&
+             data.homeAway in ['Home', 'Away'];
+    }
+
+    match /admins/{uid} {
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow write: if false; // Only manageable via console or bootstrapping email
+    }
+
+    match /years/{yearId} {
+      allow read: if isSignedIn();
+      
+      match /leagues/{leagueId} {
+        allow read: if isSignedIn();
+        
+        match /players/{playerId} {
+          allow read: if isSignedIn();
+          allow create, update: if isAdmin() && isValidPlayer(incoming()) && isValidId(playerId);
+          allow delete: if isAdmin();
+        }
+
+        match /matches/{matchId} {
+          allow read: if isSignedIn();
+          // Admin can do everything
+          allow create: if isAdmin() && isValidMatch(incoming()) && isValidId(matchId);
+          allow delete: if isAdmin();
+          
+          allow update: if (isAdmin() && isValidMatch(incoming())) ||
+                         (isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['availability']) && 
+                          incoming().availability is map);
+
+          match /mvpVotes/{voteId} {
+            // voteId should be the userId to enforce one vote per user
+            allow read: if isSignedIn();
+            allow create: if isSignedIn() && request.auth.uid == voteId &&
+                           incoming().playerId is string &&
+                           incoming().voterId == request.auth.uid;
+            allow delete: if isSignedIn() && request.auth.uid == voteId;
+          }
+        }
+      }
+    }
+  }
+}

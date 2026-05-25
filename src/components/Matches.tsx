@@ -1,0 +1,266 @@
+import React, { useEffect, useState } from 'react';
+import { Plus, Calendar, MapPin, CheckCircle2, Trophy, Users, Info, Trash2, Home, ExternalLink } from 'lucide-react';
+import { useAppContext } from '../context/AppContext';
+import { tennisService } from '../services/tennisService';
+import { Match, Player, Season, HomeAway, MatchStatus } from '../types';
+import { format } from 'date-fns';
+import { cn } from '../lib/utils';
+import { Timestamp } from 'firebase/firestore';
+
+export const Matches: React.FC = () => {
+  const { year, league } = useAppContext();
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [isAdding, setIsAdding] = useState(false);
+  
+  // Form state
+  const [opponent, setOpponent] = useState('');
+  const [location, setLocation] = useState('');
+  const [date, setDate] = useState('');
+  const [season, setSeason] = useState<Season>('Spring');
+  const [homeAway, setHomeAway] = useState<HomeAway>('Home');
+
+  useEffect(() => {
+    const unsubMatches = tennisService.subscribeMatches(year, league, (data) => setMatches(data));
+    const unsubPlayers = tennisService.subscribePlayers(year, league, (data) => setPlayers(data));
+    return () => {
+      unsubMatches();
+      unsubPlayers();
+    };
+  }, [year, league]);
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!opponent || !location || !date) return;
+    
+    await tennisService.addMatch(year, league, {
+      opponent,
+      location,
+      date: Timestamp.fromDate(new Date(date)),
+      season,
+      homeAway,
+      status: 'Scheduled',
+      availability: {}
+    });
+    
+    setOpponent('');
+    setLocation('');
+    setDate('');
+    setIsAdding(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Delete this match?')) {
+      await tennisService.deleteMatch(year, league, id);
+    }
+  };
+
+  const toggleStatus = async (match: Match) => {
+    const newStatus: MatchStatus = match.status === 'Scheduled' ? 'Completed' : 'Scheduled';
+    const updates: Partial<Match> = { status: newStatus };
+    if (newStatus === 'Completed') {
+      updates.teamScore = 0;
+      updates.opponentScore = 0;
+    }
+    await tennisService.updateMatch(year, league, match.id, updates);
+  };
+
+  const updateScore = async (matchId: string, team: number, opp: number) => {
+    await tennisService.updateMatch(year, league, matchId, { teamScore: team, opponentScore: opp });
+  };
+
+  return (
+    <div className="p-6 flex flex-col gap-6 pb-32 bg-slate-50">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Match Schedule</h2>
+          <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Upcoming & Past Events</p>
+        </div>
+        <button 
+          onClick={() => setIsAdding(true)}
+          className="bg-emerald-600 text-white px-4 py-2 rounded-xl flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all font-bold text-sm shadow-lg shadow-emerald-600/20"
+        >
+          <Plus className="w-5 h-5" />
+          <span>New Match</span>
+        </button>
+      </div>
+
+      {isAdding && (
+        <form onSubmit={handleAdd} className="tonal-card p-6 flex flex-col gap-6 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h3 className="font-bold text-slate-800">Match Details</h3>
+            <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">{season} Season</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Opponent Club</label>
+              <input 
+                 value={opponent} 
+                 onChange={e => setOpponent(e.target.value)} 
+                 placeholder="e.g. Evergreen Club"
+                 className="bg-slate-50 border border-slate-200 p-3 rounded-xl focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Venue Location</label>
+              <input 
+                value={location} 
+                onChange={e => setLocation(e.target.value)} 
+                placeholder="e.g. Riverside Courts"
+                className="bg-slate-50 border border-slate-200 p-3 rounded-xl focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Date & Time</label>
+              <input 
+                type="datetime-local" 
+                value={date} 
+                onChange={e => setDate(e.target.value)} 
+                className="bg-slate-50 border border-slate-200 p-3 rounded-xl focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Format</label>
+              <div className="flex gap-2">
+                <select value={season} onChange={e => setSeason(e.target.value as any)} className="flex-1 bg-slate-50 border border-slate-200 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition-all appearance-none cursor-pointer">
+                  <option value="Spring">Spring</option>
+                  <option value="Fall">Fall</option>
+                </select>
+                <select value={homeAway} onChange={e => setHomeAway(e.target.value as any)} className="flex-1 bg-slate-50 border border-slate-200 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition-all appearance-none cursor-pointer">
+                  <option value="Home">Home</option>
+                  <option value="Away">Away</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-3 justify-end pt-2">
+             <button type="button" onClick={() => setIsAdding(false)} className="px-6 py-2.5 text-slate-400 font-bold text-sm hover:text-slate-800 transition-colors">Cancel</button>
+             <button type="submit" className="bg-slate-900 text-white px-8 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg">Schedule Match</button>
+          </div>
+        </form>
+      )}
+
+      <div className="flex flex-col gap-6">
+        {matches.map(match => (
+          <section key={match.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden group hover:border-emerald-100 transition-all">
+            <div className={cn(
+              "px-6 py-3 border-b flex justify-between items-center transition-colors",
+              match.status === 'Completed' ? "bg-slate-50 border-slate-100" : "bg-emerald-50/30 border-emerald-100"
+            )}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white rounded-lg border border-slate-200 flex flex-col items-center justify-center text-slate-500 shadow-sm">
+                   <span className="text-[8px] uppercase font-black leading-none mb-0.5">{format(match.date.toDate(), 'MMM')}</span>
+                   <span className="text-sm font-black leading-none">{format(match.date.toDate(), 'd')}</span>
+                </div>
+                <div>
+                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{match.season} League</p>
+                   <p className="text-xs font-bold text-slate-800">{format(match.date.toDate(), 'EEEE, h:mm a')}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                 <span className={cn(
+                   "px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-widest shadow-sm",
+                   match.homeAway === 'Home' ? "bg-emerald-600 text-white" : "bg-slate-800 text-white"
+                 )}>
+                   {match.homeAway}
+                 </span>
+                 <button onClick={() => handleDelete(match.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors">
+                    <Trash2 className="w-4 h-4" />
+                 </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                <div>
+                  <h4 className="text-xl font-bold text-slate-800 mb-1 group-hover:text-emerald-700 transition-colors">{match.opponent}</h4>
+                  <div className="flex items-center gap-2 text-slate-400 text-xs font-medium">
+                    <MapPin className="w-4 h-4 text-emerald-500" />
+                    {match.location}
+                  </div>
+                </div>
+                
+                <button 
+                  onClick={() => toggleStatus(match)}
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border",
+                    match.status === 'Completed' 
+                      ? "bg-emerald-100 border-emerald-200 text-emerald-700" 
+                      : "bg-white border-slate-200 text-slate-400 hover:border-emerald-500 hover:text-emerald-600"
+                  )}
+                >
+                  {match.status}
+                </button>
+              </div>
+
+              {match.status === 'Completed' ? (
+                <div className="mt-8 flex items-center gap-8 bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
+                  <div className="flex-1 flex flex-col items-center">
+                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4">Titans TC</span>
+                    <input 
+                      type="number" 
+                      value={match.teamScore} 
+                      onChange={e => updateScore(match.id, parseInt(e.target.value), match.opponentScore || 0)}
+                      className="w-16 h-16 text-4xl font-light bg-white rounded-xl shadow-inner text-center border border-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all" 
+                    />
+                  </div>
+                  <div className="text-3xl font-light text-slate-200 self-end mb-4">:</div>
+                  <div className="flex-1 flex flex-col items-center">
+                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4">{match.opponent.split(' ')[0]}</span>
+                    <input 
+                      type="number" 
+                      value={match.opponentScore} 
+                      onChange={e => updateScore(match.id, match.teamScore || 0, parseInt(e.target.value))}
+                      className="w-16 h-16 text-4xl font-light bg-white rounded-xl shadow-inner text-center border border-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all" 
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-8 flex flex-col gap-4">
+                  <div className="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
+                    <span>Rotation Roster Availability</span>
+                    <div className="flex gap-4">
+                      <span className="text-emerald-600">Available: {Object.values(match.availability || {}).filter(s => s === 'Yes').length}</span>
+                      <span className="text-slate-500">Reserves: {Object.values(match.availability || {}).filter(s => s === 'If Needed').length}</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                    {players.map(player => {
+                      const status = match.availability?.[player.id] || 'Unknown';
+                      return (
+                        <div key={player.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs shadow-sm group/row hover:border-emerald-100 transition-all">
+                          <div className="flex items-center gap-3">
+                             <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center font-bold text-slate-400 text-[10px]">
+                               {player.rank}
+                             </div>
+                             <span className="font-bold text-slate-700 truncate max-w-[100px]">{player.name}</span>
+                          </div>
+                          <div className="flex gap-1">
+                            {['Yes', 'No', 'If Needed'].map((s) => (
+                              <button
+                                key={s}
+                                onClick={() => tennisService.updateAvailability(year, league, match.id, player.id, s)}
+                                className={cn(
+                                  "px-2 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all",
+                                  status === s 
+                                    ? (s === 'Yes' ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20" : s === 'No' ? "bg-slate-800 text-white" : "bg-emerald-100 text-emerald-700")
+                                    : "bg-white border border-slate-200 text-slate-400 hover:border-emerald-200 hover:text-emerald-500"
+                                )}
+                              >
+                                {s === 'If Needed' ? 'Need' : s}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+};
