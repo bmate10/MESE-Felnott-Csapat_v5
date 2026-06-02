@@ -1,0 +1,8 @@
+{
+  "firestore": [
+    {
+      "database": "ai-studio-advantagecourtte-53f446f2-4a2c-4c6d-85fd-11ec72f2b25d",
+      "rules": "firestore.rules"
+    }
+  ]
+}

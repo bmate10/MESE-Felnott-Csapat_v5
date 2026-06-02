@@ -1,6 +1,8 @@
 {
-  "name": "Advantage Court - Tennis Team Tracker",
+  "name": "M.E.S.E felnőtt bajnokság",
   "description": "A professional tennis team management app for tracking rosters, match schedules, player availability, and match day performance with integrated MVP voting.",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

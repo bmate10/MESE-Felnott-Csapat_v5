@@ -9,12 +9,19 @@ import { Timestamp } from 'firebase/firestore';
 import { cn } from '../lib/utils';
 
 export const Dashboard: React.FC = () => {
-  const { year, league } = useAppContext();
+  const { year, league, user } = useAppContext();
   const [matches, setMatches] = useState<Match[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [mvpVotes, setMvpVotes] = useState<Record<string, number>>({});
+  const [seedingError, setSeedingError] = useState<string | null>(null);
+  const [isSeeding, setIsSeeding] = useState(false);
 
   useEffect(() => {
+    if (!user) {
+      setMatches([]);
+      setPlayers([]);
+      return;
+    }
     const unsubMatches = tennisService.subscribeMatches(year, league, (data) => {
       setMatches(data);
     });
@@ -25,7 +32,7 @@ export const Dashboard: React.FC = () => {
       unsubMatches();
       unsubPlayers();
     };
-  }, [year, league]);
+  }, [year, league, user]);
 
   // Calculate stats
   const completedMatches = matches.filter(m => m.status === 'Completed');
@@ -37,43 +44,59 @@ export const Dashboard: React.FC = () => {
   const recentResults = completedMatches.sort((a, b) => b.date.toMillis() - a.date.toMillis()).slice(0, 2);
 
   const handleSeed = async () => {
-    // Players
-    const seedPlayers = [
-      { name: 'Marco Silva', rank: 1 },
-      { name: 'Alex Thompson', rank: 2 },
-      { name: 'David Chen', rank: 3 },
-      { name: 'James Miller', rank: 4 },
-    ];
-    for (const p of seedPlayers) {
-      await tennisService.addPlayer(year, league, p);
+    setIsSeeding(true);
+    setSeedingError(null);
+    try {
+      // Players
+      const seedPlayers = [
+        { name: 'Marco Silva', rank: 1 },
+        { name: 'Alex Thompson', rank: 2 },
+        { name: 'David Chen', rank: 3 },
+        { name: 'James Miller', rank: 4 },
+      ];
+      for (const p of seedPlayers) {
+        await tennisService.addPlayer(year, league, p);
+      }
+
+      // Matches
+      const now = new Date();
+      const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const inTwoDays = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
+
+      await tennisService.addMatch(year, league, {
+        opponent: 'Evergreen Club',
+        location: 'Riverside Tennis Center, Court 4',
+        date: Timestamp.fromDate(inTwoDays),
+        season: 'Spring',
+        homeAway: 'Away',
+        status: 'Scheduled',
+        availability: {}
+      });
+
+      await tennisService.addMatch(year, league, {
+        opponent: 'City Aces',
+        location: 'Titans Home Court',
+        date: Timestamp.fromDate(oneWeekAgo),
+        season: 'Spring',
+        homeAway: 'Home',
+        status: 'Completed',
+        teamScore: 6,
+        opponentScore: 3,
+        availability: {}
+      });
+    } catch (err: any) {
+      console.error('Seeding failed:', err);
+      let errorMsg = err.message || String(err);
+      try {
+        const parsed = JSON.parse(err.message);
+        if (parsed && parsed.error) {
+          errorMsg = parsed.error;
+        }
+      } catch (e) {}
+      setSeedingError(errorMsg);
+    } finally {
+      setIsSeeding(false);
     }
-
-    // Matches
-    const now = new Date();
-    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const inTwoDays = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
-
-    await tennisService.addMatch(year, league, {
-      opponent: 'Evergreen Club',
-      location: 'Riverside Tennis Center, Court 4',
-      date: Timestamp.fromDate(inTwoDays),
-      season: 'Spring',
-      homeAway: 'Away',
-      status: 'Scheduled',
-      availability: {}
-    });
-
-    await tennisService.addMatch(year, league, {
-      opponent: 'City Aces',
-      location: 'Titans Home Court',
-      date: Timestamp.fromDate(oneWeekAgo),
-      season: 'Spring',
-      homeAway: 'Home',
-      status: 'Completed',
-      teamScore: 6,
-      opponentScore: 3,
-      availability: {}
-    });
   };
 
   // Chart data
@@ -270,11 +293,30 @@ export const Dashboard: React.FC = () => {
               <h3 className="text-lg font-bold text-slate-800 mb-1">Begin Your Season</h3>
               <p className="text-sm text-slate-400 max-w-xs mx-auto">Initialize your team dashboard with baseline data to start tracking performance.</p>
             </div>
+            {seedingError && (
+              <div className="bg-red-50 text-red-600 border border-red-100 p-4 rounded-xl text-center text-xs font-bold max-w-md animate-in fade-in space-y-2">
+                <div>Error Seeding:</div>
+                <div className="font-mono text-[11px] bg-red-100/50 p-3 rounded-lg border border-red-200 overflow-x-auto text-left whitespace-pre-wrap max-h-60">
+                  {seedingError.startsWith('{') ? (
+                    (() => {
+                      try {
+                        return JSON.stringify(JSON.parse(seedingError), null, 2);
+                      } catch (e) {
+                        return seedingError;
+                      }
+                    })()
+                  ) : (
+                    seedingError
+                  )}
+                </div>
+              </div>
+            )}
             <button 
               onClick={handleSeed}
-              className="bg-emerald-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 active:scale-95 transition-all"
+              disabled={isSeeding}
+              className="bg-emerald-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50"
             >
-              Seed Example Data
+              {isSeeding ? 'Seeding Baseline Data...' : 'Seed Example Data'}
             </button>
           </div>
         )}

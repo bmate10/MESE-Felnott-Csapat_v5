@@ -6,18 +6,22 @@ import { Player } from '../types';
 import { cn } from '../lib/utils';
 
 export const Players: React.FC = () => {
-  const { year, league } = useAppContext();
+  const { year, league, user } = useAppContext();
   const [players, setPlayers] = useState<Player[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
   const [newRank, setNewRank] = useState('1');
 
   useEffect(() => {
+    if (!user) {
+      setPlayers([]);
+      return;
+    }
     const unsub = tennisService.subscribePlayers(year, league, (data) => {
       setPlayers(data);
     });
     return () => unsub();
-  }, [year, league]);
+  }, [year, league, user]);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();

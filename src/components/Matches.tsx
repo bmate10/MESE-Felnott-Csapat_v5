@@ -8,10 +8,12 @@ import { cn } from '../lib/utils';
 import { Timestamp } from 'firebase/firestore';
 
 export const Matches: React.FC = () => {
-  const { year, league } = useAppContext();
+  const { year, league, user } = useAppContext();
   const [matches, setMatches] = useState<Match[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [isAdding, setIsAdding] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [savingError, setSavingError] = useState<string | null>(null);
   
   // Form state
   const [opponent, setOpponent] = useState('');
@@ -21,32 +23,46 @@ export const Matches: React.FC = () => {
   const [homeAway, setHomeAway] = useState<HomeAway>('Home');
 
   useEffect(() => {
+    if (!user) {
+      setMatches([]);
+      setPlayers([]);
+      return;
+    }
     const unsubMatches = tennisService.subscribeMatches(year, league, (data) => setMatches(data));
     const unsubPlayers = tennisService.subscribePlayers(year, league, (data) => setPlayers(data));
     return () => {
       unsubMatches();
       unsubPlayers();
     };
-  }, [year, league]);
+  }, [year, league, user]);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!opponent || !location || !date) return;
     
-    await tennisService.addMatch(year, league, {
-      opponent,
-      location,
-      date: Timestamp.fromDate(new Date(date)),
-      season,
-      homeAway,
-      status: 'Scheduled',
-      availability: {}
-    });
-    
-    setOpponent('');
-    setLocation('');
-    setDate('');
-    setIsAdding(false);
+    setIsSaving(true);
+    setSavingError(null);
+    try {
+      await tennisService.addMatch(year, league, {
+        opponent,
+        location,
+        date: Timestamp.fromDate(new Date(date)),
+        season,
+        homeAway,
+        status: 'Scheduled',
+        availability: {}
+      });
+      
+      setOpponent('');
+      setLocation('');
+      setDate('');
+      setIsAdding(false);
+    } catch (err: any) {
+      console.error('Failed to add match:', err);
+      setSavingError(err.message || String(err));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -133,9 +149,29 @@ export const Matches: React.FC = () => {
               </div>
             </div>
           </div>
+          {savingError && (
+            <div className="bg-red-50 text-red-600 border border-red-100 p-4 rounded-xl text-xs font-bold animate-in fade-in space-y-2">
+              <div>Failed to schedule match:</div>
+              <div className="font-mono text-[11px] bg-red-100/50 p-3 rounded-lg border border-red-200 overflow-x-auto text-left whitespace-pre-wrap max-h-60">
+                {savingError.startsWith('{') ? (
+                  (() => {
+                    try {
+                      return JSON.stringify(JSON.parse(savingError), null, 2);
+                    } catch (e) {
+                      return savingError;
+                    }
+                  })()
+                ) : (
+                  savingError
+                )}
+              </div>
+            </div>
+          )}
           <div className="flex gap-3 justify-end pt-2">
-             <button type="button" onClick={() => setIsAdding(false)} className="px-6 py-2.5 text-slate-400 font-bold text-sm hover:text-slate-800 transition-colors">Cancel</button>
-             <button type="submit" className="bg-slate-900 text-white px-8 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg">Schedule Match</button>
+             <button type="button" disabled={isSaving} onClick={() => setIsAdding(false)} className="px-6 py-2.5 text-slate-400 font-bold text-sm hover:text-slate-800 transition-colors disabled:opacity-50">Cancel</button>
+             <button type="submit" disabled={isSaving} className="bg-slate-900 text-white px-8 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg disabled:opacity-50">
+               {isSaving ? 'Scheduling...' : 'Schedule Match'}
+             </button>
           </div>
         </form>
       )}

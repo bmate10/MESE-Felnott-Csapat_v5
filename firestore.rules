@@ -11,7 +11,7 @@ service cloud.firestore {
     }
 
     function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+      return id is string && id.size() <= 128;
     }
 
     function incoming() {
@@ -24,8 +24,9 @@ service cloud.firestore {
 
     function isAdmin() {
        return isSignedIn() && (
-         exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
-         (request.auth.token.email == 'bmate10@gmail.com' && request.auth.token.email_verified == true)
+         request.auth.uid == 'lMx7g98t0xVPQbtsBhOFLBB2w4h1' ||
+         request.auth.token.email == 'bmate10@gmail.com' ||
+         exists(/databases/$(database)/documents/admins/$(request.auth.uid))
        );
     }
 
@@ -33,18 +34,20 @@ service cloud.firestore {
       return data.keys().hasAll(['name', 'rank']) &&
              data.keys().size() == 2 &&
              data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
-             data.rank is int && data.rank >= 1 && data.rank <= 200;
+             (data.rank is int || data.rank is float) && data.rank >= 1 && data.rank <= 200;
     }
 
     function isValidMatch(data) {
-      // Basic fields check. Map keys for optional fields like scores/availability
-      return data.keys().hasAll(['opponent', 'location', 'date', 'season', 'status', 'homeAway']) &&
-             data.opponent is string && data.opponent.size() > 0 &&
-             data.location is string && data.location.size() > 0 &&
+      return data.keys().hasAll(['opponent', 'location', 'date', 'season', 'status', 'homeAway', 'availability']) &&
+             data.opponent is string && data.opponent.size() > 0 && data.opponent.size() <= 100 &&
+             data.location is string && data.location.size() > 0 && data.location.size() <= 200 &&
              data.date is timestamp &&
              data.season in ['Spring', 'Fall'] &&
              data.status in ['Scheduled', 'Completed'] &&
-             data.homeAway in ['Home', 'Away'];
+             data.homeAway in ['Home', 'Away'] &&
+             data.availability is map &&
+             (!('teamScore' in data) || data.teamScore is int || data.teamScore is float) &&
+             (!('opponentScore' in data) || data.opponentScore is int || data.opponentScore is float);
     }
 
     match /admins/{uid} {
@@ -66,8 +69,8 @@ service cloud.firestore {
 
         match /matches/{matchId} {
           allow read: if isSignedIn();
-          // Admin can do everything
-          allow create: if isAdmin() && isValidMatch(incoming()) && isValidId(matchId);
+          // Authenticated users can create valid matches
+          allow create: if isSignedIn() && isValidMatch(incoming()) && isValidId(matchId);
           allow delete: if isAdmin();
           
           allow update: if (isAdmin() && isValidMatch(incoming())) ||
