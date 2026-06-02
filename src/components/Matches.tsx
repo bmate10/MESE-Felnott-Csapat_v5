@@ -8,7 +8,7 @@ import { cn } from '../lib/utils';
 import { Timestamp } from 'firebase/firestore';
 
 export const Matches: React.FC = () => {
-  const { year, league, user } = useAppContext();
+  const { year, league, user, isAdmin } = useAppContext();
   const [matches, setMatches] = useState<Match[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [isAdding, setIsAdding] = useState(false);
@@ -92,13 +92,15 @@ export const Matches: React.FC = () => {
           <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Match Schedule</h2>
           <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Upcoming & Past Events</p>
         </div>
-        <button 
-          onClick={() => setIsAdding(true)}
-          className="bg-emerald-600 text-white px-4 py-2 rounded-xl flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all font-bold text-sm shadow-lg shadow-emerald-600/20"
-        >
-          <Plus className="w-5 h-5" />
-          <span>New Match</span>
-        </button>
+        {isAdmin && (
+          <button 
+            onClick={() => setIsAdding(true)}
+            className="bg-emerald-600 text-white px-4 py-2 rounded-xl flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all font-bold text-sm shadow-lg shadow-emerald-600/20"
+          >
+            <Plus className="w-5 h-5" />
+            <span>New Match</span>
+          </button>
+        )}
       </div>
 
       {isAdding && (
@@ -200,9 +202,11 @@ export const Matches: React.FC = () => {
                  )}>
                    {match.homeAway}
                  </span>
-                 <button onClick={() => handleDelete(match.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors">
-                    <Trash2 className="w-4 h-4" />
-                 </button>
+                 {isAdmin && (
+                   <button onClick={() => handleDelete(match.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                   </button>
+                 )}
               </div>
             </div>
 
@@ -216,39 +220,58 @@ export const Matches: React.FC = () => {
                   </div>
                 </div>
                 
-                <button 
-                  onClick={() => toggleStatus(match)}
-                  className={cn(
-                    "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border",
+                {isAdmin ? (
+                  <button 
+                    onClick={() => toggleStatus(match)}
+                    className={cn(
+                      "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border",
+                      match.status === 'Completed' 
+                        ? "bg-emerald-100 border-emerald-200 text-emerald-700" 
+                        : "bg-white border-slate-200 text-slate-400 hover:border-emerald-500 hover:text-emerald-600"
+                    )}
+                  >
+                    {match.status}
+                  </button>
+                ) : (
+                  <span className={cn(
+                    "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border font-bold",
                     match.status === 'Completed' 
-                      ? "bg-emerald-100 border-emerald-200 text-emerald-700" 
-                      : "bg-white border-slate-200 text-slate-400 hover:border-emerald-500 hover:text-emerald-600"
-                  )}
-                >
-                  {match.status}
-                </button>
+                      ? "bg-emerald-100/30 border-emerald-100 text-emerald-750" 
+                      : "bg-slate-50 border-slate-200 text-slate-400"
+                  )}>
+                    {match.status}
+                  </span>
+                )}
               </div>
 
               {match.status === 'Completed' ? (
                 <div className="mt-8 flex items-center gap-8 bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
                   <div className="flex-1 flex flex-col items-center">
                     <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4">Titans TC</span>
-                    <input 
-                      type="number" 
-                      value={match.teamScore} 
-                      onChange={e => updateScore(match.id, parseInt(e.target.value), match.opponentScore || 0)}
-                      className="w-16 h-16 text-4xl font-light bg-white rounded-xl shadow-inner text-center border border-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all" 
-                    />
+                    {isAdmin ? (
+                      <input 
+                        type="number" 
+                        value={match.teamScore} 
+                        onChange={e => updateScore(match.id, parseInt(e.target.value), match.opponentScore || 0)}
+                        className="w-16 h-16 text-4xl font-light bg-white rounded-xl shadow-inner text-center border border-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all" 
+                      />
+                    ) : (
+                      <span className="w-16 h-16 text-4xl font-bold flex items-center justify-center text-slate-800 bg-white rounded-xl border border-slate-150 shadow-sm">{match.teamScore}</span>
+                    )}
                   </div>
                   <div className="text-3xl font-light text-slate-200 self-end mb-4">:</div>
                   <div className="flex-1 flex flex-col items-center">
                     <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4">{match.opponent.split(' ')[0]}</span>
-                    <input 
-                      type="number" 
-                      value={match.opponentScore} 
-                      onChange={e => updateScore(match.id, match.teamScore || 0, parseInt(e.target.value))}
-                      className="w-16 h-16 text-4xl font-light bg-white rounded-xl shadow-inner text-center border border-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all" 
-                    />
+                    {isAdmin ? (
+                      <input 
+                        type="number" 
+                        value={match.opponentScore} 
+                        onChange={e => updateScore(match.id, match.teamScore || 0, parseInt(e.target.value))}
+                        className="w-16 h-16 text-4xl font-light bg-white rounded-xl shadow-inner text-center border border-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all" 
+                      />
+                    ) : (
+                      <span className="w-16 h-16 text-4xl font-bold flex items-center justify-center text-slate-800 bg-white rounded-xl border border-slate-150 shadow-sm">{match.opponentScore}</span>
+                    )}
                   </div>
                 </div>
               ) : (

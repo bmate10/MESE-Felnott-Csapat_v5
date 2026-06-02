@@ -9,7 +9,7 @@ import { Timestamp } from 'firebase/firestore';
 import { cn } from '../lib/utils';
 
 export const Dashboard: React.FC = () => {
-  const { year, league, user } = useAppContext();
+  const { year, league, user, isAdmin } = useAppContext();
   const [matches, setMatches] = useState<Match[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [mvpVotes, setMvpVotes] = useState<Record<string, number>>({});
@@ -291,33 +291,45 @@ export const Dashboard: React.FC = () => {
             </div>
             <div className="text-center">
               <h3 className="text-lg font-bold text-slate-800 mb-1">Begin Your Season</h3>
-              <p className="text-sm text-slate-400 max-w-xs mx-auto">Initialize your team dashboard with baseline data to start tracking performance.</p>
+              <p className="text-sm text-slate-400 max-w-xs mx-auto">
+                {isAdmin 
+                  ? "Initialize your team dashboard with baseline data to start tracking performance." 
+                  : `Welcome to the selection portal! No match records have been scheduled for ${year} ${league} yet.`}
+              </p>
             </div>
-            {seedingError && (
-              <div className="bg-red-50 text-red-600 border border-red-100 p-4 rounded-xl text-center text-xs font-bold max-w-md animate-in fade-in space-y-2">
-                <div>Error Seeding:</div>
-                <div className="font-mono text-[11px] bg-red-100/50 p-3 rounded-lg border border-red-200 overflow-x-auto text-left whitespace-pre-wrap max-h-60">
-                  {seedingError.startsWith('{') ? (
-                    (() => {
-                      try {
-                        return JSON.stringify(JSON.parse(seedingError), null, 2);
-                      } catch (e) {
-                        return seedingError;
-                      }
-                    })()
-                  ) : (
-                    seedingError
-                  )}
-                </div>
+            {isAdmin ? (
+              <>
+                {seedingError && (
+                  <div className="bg-red-50 text-red-600 border border-red-100 p-4 rounded-xl text-center text-xs font-bold max-w-md animate-in fade-in space-y-2">
+                    <div>Error Seeding:</div>
+                    <div className="font-mono text-[11px] bg-red-100/50 p-3 rounded-lg border border-red-200 overflow-x-auto text-left whitespace-pre-wrap max-h-60">
+                      {seedingError.startsWith('{') ? (
+                        (() => {
+                          try {
+                            return JSON.stringify(JSON.parse(seedingError), null, 2);
+                          } catch (e) {
+                            return seedingError;
+                          }
+                        })()
+                      ) : (
+                        seedingError
+                      )}
+                    </div>
+                  </div>
+                )}
+                <button 
+                  onClick={handleSeed}
+                  disabled={isSeeding}
+                  className="bg-emerald-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50"
+                >
+                  {isSeeding ? 'Seeding Baseline Data...' : 'Seed Example Data'}
+                </button>
+              </>
+            ) : (
+              <div className="text-xs font-semibold uppercase tracking-widest text-emerald-600 bg-emerald-50 px-5 py-2.5 rounded-xl border border-emerald-100">
+                Awaiting Administration Setup
               </div>
             )}
-            <button 
-              onClick={handleSeed}
-              disabled={isSeeding}
-              className="bg-emerald-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50"
-            >
-              {isSeeding ? 'Seeding Baseline Data...' : 'Seed Example Data'}
-            </button>
           </div>
         )}
       </div>

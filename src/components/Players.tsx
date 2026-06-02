@@ -6,11 +6,13 @@ import { Player } from '../types';
 import { cn } from '../lib/utils';
 
 export const Players: React.FC = () => {
-  const { year, league, user } = useAppContext();
+  const { year, league, user, isAdmin } = useAppContext();
   const [players, setPlayers] = useState<Player[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
   const [newRank, setNewRank] = useState('1');
+  const [isSaving, setIsSaving] = useState(false);
+  const [savingError, setSavingError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -26,13 +28,22 @@ export const Players: React.FC = () => {
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName) return;
-    await tennisService.addPlayer(year, league, {
-      name: newName,
-      rank: parseInt(newRank)
-    });
-    setNewName('');
-    setNewRank('1');
-    setIsAdding(false);
+    setIsSaving(true);
+    setSavingError(null);
+    try {
+      await tennisService.addPlayer(year, league, {
+        name: newName,
+        rank: parseInt(newRank)
+      });
+      setNewName('');
+      setNewRank('1');
+      setIsAdding(false);
+    } catch (err: any) {
+      console.error('Failed to add player:', err);
+      setSavingError(err.message || String(err));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -48,13 +59,15 @@ export const Players: React.FC = () => {
           <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Team Roster</h2>
           <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">{league} • {year}</p>
         </div>
-        <button 
-          onClick={() => setIsAdding(true)}
-          className="bg-emerald-600 text-white px-4 py-2 rounded-xl flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all font-bold text-sm shadow-lg shadow-emerald-600/20"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Add Player</span>
-        </button>
+        {isAdmin && (
+          <button 
+            onClick={() => setIsAdding(true)}
+            className="bg-emerald-600 text-white px-4 py-2 rounded-xl flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all font-bold text-sm shadow-lg shadow-emerald-600/20"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Add Player</span>
+          </button>
+        )}
       </div>
 
       {isAdding && (
@@ -83,19 +96,39 @@ export const Players: React.FC = () => {
               />
             </div>
           </div>
+          {savingError && (
+            <div className="bg-red-50 text-red-600 border border-red-100 p-4 rounded-xl text-xs font-bold animate-in fade-in space-y-2">
+              <div>Failed to add player:</div>
+              <div className="font-mono text-[11px] bg-red-100/50 p-3 rounded-lg border border-red-200 overflow-x-auto text-left whitespace-pre-wrap max-h-60">
+                {savingError.startsWith('{') ? (
+                  (() => {
+                    try {
+                      return JSON.stringify(JSON.parse(savingError), null, 2);
+                    } catch (e) {
+                      return savingError;
+                    }
+                  })()
+                ) : (
+                  savingError
+                )}
+              </div>
+            </div>
+          )}
           <div className="flex gap-3 justify-end pt-2">
             <button 
               type="button"
+              disabled={isSaving}
               onClick={() => setIsAdding(false)}
-              className="px-6 py-2.5 text-slate-400 font-bold text-sm hover:text-slate-800 transition-colors"
+              className="px-6 py-2.5 text-slate-400 font-bold text-sm hover:text-slate-800 transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
             <button 
               type="submit"
-              className="bg-slate-900 text-white px-8 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg"
+              disabled={isSaving}
+              className="bg-slate-900 text-white px-8 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg disabled:opacity-50"
             >
-              Save to Roster
+              {isSaving ? 'Saving...' : 'Save to Roster'}
             </button>
           </div>
         </form>
@@ -115,17 +148,19 @@ export const Players: React.FC = () => {
                 <span className="text-[10px] text-slate-400 font-medium">Joined {year}</span>
               </div>
             </div>
-            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
-              <button className="p-2.5 rounded-xl bg-slate-50 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all">
-                <Edit2 className="w-4 h-4" />
-              </button>
-              <button 
-                 onClick={() => handleDelete(player.id)}
-                 className="p-2.5 rounded-xl bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
+            {isAdmin && (
+              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
+                <button className="p-2.5 rounded-xl bg-slate-50 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all">
+                  <Edit2 className="w-4 h-4" />
+                </button>
+                <button 
+                   onClick={() => handleDelete(player.id)}
+                   className="p-2.5 rounded-xl bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
         ))}
         {players.length === 0 && !isAdding && (
@@ -137,12 +172,14 @@ export const Players: React.FC = () => {
               <p className="font-bold text-slate-800 text-lg">No players listed yet</p>
               <p className="text-sm text-slate-400 mt-1">Start by adding players to your {year} {league} roster.</p>
             </div>
-            <button 
-              onClick={() => setIsAdding(true)}
-              className="px-8 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-emerald-50 hover:text-emerald-600 transition-all"
-            >
-              Add First Player
-            </button>
+            {isAdmin && (
+              <button 
+                onClick={() => setIsAdding(true)}
+                className="px-8 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-emerald-50 hover:text-emerald-600 transition-all"
+              >
+                Add First Player
+              </button>
+            )}
           </div>
         )}
       </div>
