@@ -147,13 +147,14 @@ export const Matches: React.FC = () => {
     const updates: Partial<Match> = { status: newStatus };
     if (newStatus === 'Completed') {
       updates.teamScore = 0;
-      updates.opponentScore = 0;
+      updates.opponentScore = 9;
     }
     await tennisService.updateMatch(year, league, match.id, updates);
   };
 
-  const updateScore = async (matchId: string, team: number, opp: number) => {
-    await tennisService.updateMatch(year, league, matchId, { teamScore: team, opponentScore: opp });
+  // A match is always 6 singles + 3 doubles, so the two scores always sum to 9.
+  const updateScore = async (matchId: string, team: number) => {
+    await tennisService.updateMatch(year, league, matchId, { teamScore: team, opponentScore: 9 - team });
   };
 
   return (
@@ -331,12 +332,15 @@ export const Matches: React.FC = () => {
                   <div className="flex-1 flex flex-col items-center">
                     <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4">M.E.S.E</span>
                     {isAdmin ? (
-                      <input 
-                        type="number" 
-                        value={match.teamScore} 
-                        onChange={e => updateScore(match.id, parseInt(e.target.value), match.opponentScore || 0)}
-                        className="w-16 h-16 text-4xl font-light bg-white rounded-xl shadow-inner text-center border border-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all" 
-                      />
+                      <select
+                        value={match.teamScore ?? 0}
+                        onChange={e => updateScore(match.id, parseInt(e.target.value))}
+                        className="w-20 h-16 text-3xl font-light bg-white rounded-xl shadow-inner text-center border border-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
+                      >
+                        {Array.from({ length: 10 }, (_, i) => i).map(n => (
+                          <option key={n} value={n}>{n}</option>
+                        ))}
+                      </select>
                     ) : (
                       <span className="w-16 h-16 text-4xl font-bold flex items-center justify-center text-slate-800 bg-white rounded-xl border border-slate-150 shadow-sm">{match.teamScore}</span>
                     )}
@@ -344,16 +348,7 @@ export const Matches: React.FC = () => {
                   <div className="text-3xl font-light text-slate-200 self-end mb-4">:</div>
                   <div className="flex-1 flex flex-col items-center">
                     <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4">{match.opponent.split(' ')[0]}</span>
-                    {isAdmin ? (
-                      <input 
-                        type="number" 
-                        value={match.opponentScore} 
-                        onChange={e => updateScore(match.id, match.teamScore || 0, parseInt(e.target.value))}
-                        className="w-16 h-16 text-4xl font-light bg-white rounded-xl shadow-inner text-center border border-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all" 
-                      />
-                    ) : (
-                      <span className="w-16 h-16 text-4xl font-bold flex items-center justify-center text-slate-800 bg-white rounded-xl border border-slate-150 shadow-sm">{match.opponentScore}</span>
-                    )}
+                    <span className="w-16 h-16 text-4xl font-bold flex items-center justify-center text-slate-800 bg-white rounded-xl border border-slate-150 shadow-sm">{match.opponentScore}</span>
                   </div>
                 </div>
               ) : null}
