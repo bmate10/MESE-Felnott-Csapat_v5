@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Plus, Calendar, MapPin, CheckCircle2, Trophy, Users, Info, Trash2, Home, ExternalLink } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { tennisService } from '../services/tennisService';
-import { Match, Player, Season, HomeAway, MatchStatus, MvpVote, MVP_SKIP_ID } from '../types';
+import { Match, Player, Season, HomeAway, MatchStatus, MvpVote, MVP_SKIP_ID, AvailabilityEntry } from '../types';
 import { format } from 'date-fns';
 import { cn } from '../lib/utils';
 import { Timestamp } from 'firebase/firestore';
@@ -76,6 +76,46 @@ const MvpVoteBox: React.FC<{ year: string; league: string; match: Match; players
   );
 };
 
+const AvailabilitySummary: React.FC<{ year: string; league: string; matchId: string; players: Player[] }> = ({ year, league, matchId, players }) => {
+  const [entries, setEntries] = useState<AvailabilityEntry[]>([]);
+
+  useEffect(() => {
+    return tennisService.subscribeAvailability(year, league, matchId, setEntries);
+  }, [year, league, matchId]);
+
+  const nameOf = (playerId: string) => players.find(p => p.id === playerId)?.name || 'Unknown';
+  const available = entries.filter(e => e.status === 'Yes');
+  const reserves = entries.filter(e => e.status === 'If Needed');
+  const unavailable = entries.filter(e => e.status === 'No');
+
+  return (
+    <div className="mt-8 flex flex-col gap-3">
+      <div className="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
+        <span>Rotation Roster Availability</span>
+        <div className="flex gap-4">
+          <span className="text-emerald-600">Available: {available.length}</span>
+          <span className="text-slate-500">Reserves: {reserves.length}</span>
+        </div>
+      </div>
+      {entries.length === 0 ? (
+        <p className="text-xs text-slate-400 italic py-2">No responses yet. Set yours from the My Availability tab.</p>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {available.map(e => (
+            <span key={e.id} className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-emerald-100 text-emerald-700">{nameOf(e.id)}</span>
+          ))}
+          {reserves.map(e => (
+            <span key={e.id} className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-amber-100 text-amber-700">{nameOf(e.id)}</span>
+          ))}
+          {unavailable.map(e => (
+            <span key={e.id} className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-slate-100 text-slate-500">{nameOf(e.id)}</span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const Matches: React.FC = () => {
   const { year, league, user, isAdmin } = useAppContext();
   const [matches, setMatches] = useState<Match[]>([]);
@@ -119,8 +159,7 @@ export const Matches: React.FC = () => {
         date: Timestamp.fromDate(new Date(`${matchDate}T${matchHour}:00`)),
         season,
         homeAway,
-        status: 'Scheduled',
-        availability: {}
+        status: 'Scheduled'
       });
 
       setOpponent('');
@@ -362,46 +401,7 @@ export const Matches: React.FC = () => {
               ) : null}
 
               {match.status !== 'Completed' && (
-                <div className="mt-8 flex flex-col gap-4">
-                  <div className="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
-                    <span>Rotation Roster Availability</span>
-                    <div className="flex gap-4">
-                      <span className="text-emerald-600">Available: {Object.values(match.availability || {}).filter(s => s === 'Yes').length}</span>
-                      <span className="text-slate-500">Reserves: {Object.values(match.availability || {}).filter(s => s === 'If Needed').length}</span>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-                    {players.map(player => {
-                      const status = match.availability?.[player.id] || 'Unknown';
-                      return (
-                        <div key={player.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs shadow-sm group/row hover:border-emerald-100 transition-all">
-                          <div className="flex items-center gap-3">
-                             <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center font-bold text-slate-400 text-[10px]">
-                               {player.rank}
-                             </div>
-                             <span className="font-bold text-slate-700 truncate max-w-[100px]">{player.name}</span>
-                          </div>
-                          <div className="flex gap-1">
-                            {['Yes', 'No', 'If Needed'].map((s) => (
-                              <button
-                                key={s}
-                                onClick={() => tennisService.updateAvailability(year, league, match.id, player.id, s)}
-                                className={cn(
-                                  "px-2 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all",
-                                  status === s 
-                                    ? (s === 'Yes' ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20" : s === 'No' ? "bg-slate-800 text-white" : "bg-emerald-100 text-emerald-700")
-                                    : "bg-white border border-slate-200 text-slate-400 hover:border-emerald-200 hover:text-emerald-500"
-                                )}
-                              >
-                                {s === 'If Needed' ? 'Need' : s}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                <AvailabilitySummary year={year} league={league} matchId={match.id} players={players} />
               )}
             </div>
           </section>

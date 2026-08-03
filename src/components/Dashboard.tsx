@@ -4,7 +4,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { History, Shield, Trophy, MapPin, ChevronRight } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { tennisService } from '../services/tennisService';
-import { Match, Player, MvpVote, MVP_SKIP_ID } from '../types';
+import { Match, Player, MvpVote, MVP_SKIP_ID, AvailabilityStatus } from '../types';
 import { format } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
 import { cn } from '../lib/utils';
@@ -96,6 +96,32 @@ export const Dashboard: React.FC = () => {
     (matchVotesMap[m.id] || []).some(v => v.voterId === user.uid)
   );
 
+  // Availability aggregation for "my" linked players
+  const myPlayers = players.filter(p => p.uid === user?.uid);
+  const scheduledMatches = matches.filter(m => m.status === 'Scheduled');
+  const myPlayerIds = myPlayers.map(p => p.id).sort().join(',');
+  const scheduledMatchIds = scheduledMatches.map(m => m.id).sort().join(',');
+  const [myAvailabilityMap, setMyAvailabilityMap] = useState<Record<string, AvailabilityStatus | undefined>>({});
+
+  useEffect(() => {
+    setMyAvailabilityMap({});
+    if (!user || myPlayers.length === 0 || scheduledMatches.length === 0) return;
+    const unsubs: (() => void)[] = [];
+    myPlayers.forEach(p => {
+      scheduledMatches.forEach(m => {
+        unsubs.push(tennisService.subscribePlayerAvailability(year, league, m.id, p.id, (status) => {
+          setMyAvailabilityMap(prev => ({ ...prev, [`${p.id}:${m.id}`]: status }));
+        }));
+      });
+    });
+    return () => unsubs.forEach(u => u());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [year, league, user, myPlayerIds, scheduledMatchIds]);
+
+  const missingAvailabilityCount = myPlayers.reduce((count, p) =>
+    count + scheduledMatches.filter(m => !myAvailabilityMap[`${p.id}:${m.id}`]).length, 0
+  );
+
   const handleSeed = async () => {
     setIsSeeding(true);
     setSeedingError(null);
@@ -122,8 +148,7 @@ export const Dashboard: React.FC = () => {
         date: Timestamp.fromDate(inTwoDays),
         season: 'Spring',
         homeAway: 'Away',
-        status: 'Scheduled',
-        availability: {}
+        status: 'Scheduled'
       });
 
       await tennisService.addMatch(year, league, {
@@ -134,8 +159,7 @@ export const Dashboard: React.FC = () => {
         homeAway: 'Home',
         status: 'Completed',
         teamScore: 6,
-        opponentScore: 3,
-        availability: {}
+        opponentScore: 3
       });
     } catch (err: any) {
       console.error('Seeding failed:', err);
@@ -285,6 +309,36 @@ export const Dashboard: React.FC = () => {
 
         {/* Right Column / Sidebar */}
         <div className="lg:col-span-4 space-y-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-slate-800">Availability</h2>
+              {myPlayers.length === 0 ? (
+                <button
+                  onClick={() => navigate('/my-availability')}
+                  className="text-[10px] bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded hover:bg-amber-200 transition-colors"
+                >
+                  Link Your Profile
+                </button>
+              ) : missingAvailabilityCount === 0 ? (
+                <span className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded">All Set</span>
+              ) : (
+                <button
+                  onClick={() => navigate('/my-availability')}
+                  className="text-[10px] bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded hover:bg-amber-200 transition-colors"
+                >
+                  {missingAvailabilityCount} Needed
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              {myPlayers.length === 0
+                ? 'Link your player profile to start marking your availability for upcoming matches.'
+                : missingAvailabilityCount === 0
+                  ? "You're up to date on all upcoming matches."
+                  : `${missingAvailabilityCount} response${missingAvailabilityCount === 1 ? '' : 's'} needed across ${scheduledMatches.length} upcoming match${scheduledMatches.length === 1 ? '' : 'es'}.`}
+            </p>
+          </div>
+
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-bold text-slate-800">Season MVP</h2>

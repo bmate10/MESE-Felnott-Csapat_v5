@@ -7,6 +7,7 @@ export interface Player {
   id: string;
   name: string;
   rank: number;
+  uid?: string; // Google account uid managing this player's availability
 }
 
 export interface Match {
@@ -19,7 +20,12 @@ export interface Match {
   homeAway: HomeAway;
   teamScore?: number;
   opponentScore?: number;
-  availability?: Record<string, AvailabilityStatus>;
+}
+
+// Doc id is the playerId; lives at matches/{matchId}/availability/{playerId}
+export interface AvailabilityEntry {
+  id: string;
+  status: AvailabilityStatus;
 }
 
 export interface League {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, User, Trash2, Edit2, ShieldAlert } from 'lucide-react';
+import { Plus, User, Trash2, Edit2, ShieldAlert, Link2Off, Link2 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { tennisService } from '../services/tennisService';
 import { Player } from '../types';
@@ -49,6 +49,12 @@ export const Players: React.FC = () => {
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this player?')) {
       await tennisService.deletePlayer(year, league, id);
+    }
+  };
+
+  const handleUnlink = async (id: string) => {
+    if (confirm('Remove the linked Google account from this player?')) {
+      await tennisService.unlinkPlayer(year, league, id);
     }
   };
 
@@ -146,14 +152,30 @@ export const Players: React.FC = () => {
               <div className="flex items-center gap-3 mt-1">
                 <span className="px-2 py-0.5 rounded bg-slate-50 text-[9px] font-bold text-slate-400 uppercase tracking-widest border border-slate-200">Active</span>
                 <span className="text-[10px] text-slate-400 font-medium">Joined {year}</span>
+                {player.uid ? (
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600">
+                    <Link2 className="w-3 h-3" /> Linked
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold text-slate-300">Unclaimed</span>
+                )}
               </div>
             </div>
             {isAdmin && (
               <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
+                {player.uid && (
+                  <button
+                     onClick={() => handleUnlink(player.id)}
+                     title="Unlink account"
+                     className="p-2.5 rounded-xl bg-slate-50 text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-all"
+                  >
+                    <Link2Off className="w-4 h-4" />
+                  </button>
+                )}
                 <button className="p-2.5 rounded-xl bg-slate-50 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all">
                   <Edit2 className="w-4 h-4" />
                 </button>
-                <button 
+                <button
                    onClick={() => handleDelete(player.id)}
                    className="p-2.5 rounded-xl bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
                 >

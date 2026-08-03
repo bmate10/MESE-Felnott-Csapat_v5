@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Search, UserCircle, Home, Calendar, Users, Settings, LogOut, Lock } from 'lucide-react';
+import { Search, UserCircle, Home, Calendar, Users, Settings, LogOut, Lock, CalendarCheck } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAppContext } from '../context/AppContext';
 
@@ -11,6 +11,7 @@ export const Layout: React.FC = () => {
   const topTabs = [
     { name: 'Dashboard', path: '/' },
     { name: 'Matches', path: '/matches' },
+    { name: 'My Availability', path: '/my-availability' },
     { name: 'Players', path: '/players' },
   ];
 
@@ -181,8 +182,22 @@ export const Layout: React.FC = () => {
             </>
           )}
         </NavLink>
-        <NavLink 
-          to="/players" 
+        <NavLink
+          to="/my-availability"
+          className={({ isActive }) => cn(
+            "flex flex-col items-center gap-1 transition-colors",
+            isActive ? "text-emerald-600 font-bold" : "text-slate-400 hover:text-slate-800"
+          )}
+        >
+          {({ isActive }) => (
+            <>
+              <CalendarCheck className={cn("w-5 h-5", isActive ? "fill-current" : "")} />
+              <span className="text-[10px] font-bold uppercase tracking-widest">Availability</span>
+            </>
+          )}
+        </NavLink>
+        <NavLink
+          to="/players"
           className={({ isActive }) => cn(
             "flex flex-col items-center gap-1 transition-colors",
             isActive ? "text-emerald-600 font-bold" : "text-slate-400 hover:text-slate-800"

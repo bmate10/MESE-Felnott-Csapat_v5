@@ -1,19 +1,20 @@
-import { 
-  collection, 
-  doc, 
-  getDocs, 
-  getDoc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  orderBy, 
+import {
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  orderBy,
   onSnapshot,
   setDoc,
+  deleteField,
   Timestamp
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
-import { OperationType, Player, Match, MvpVote } from '../types';
+import { OperationType, Player, Match, MvpVote, AvailabilityEntry, AvailabilityStatus } from '../types';
 
 function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
   const errInfo = {
@@ -69,6 +70,24 @@ export const tennisService = {
     }
   },
 
+  claimPlayer: async (year: string, league: string, playerId: string, uid: string) => {
+    const path = `years/${year}/leagues/${league}/players/${playerId}`;
+    try {
+      await updateDoc(doc(db, path), { uid });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, path);
+    }
+  },
+
+  unlinkPlayer: async (year: string, league: string, playerId: string) => {
+    const path = `years/${year}/leagues/${league}/players/${playerId}`;
+    try {
+      await updateDoc(doc(db, path), { uid: deleteField() });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, path);
+    }
+  },
+
   // Matches
   subscribeMatches: (year: string, league: string, callback: (matches: Match[]) => void) => {
     const path = `years/${year}/leagues/${league}/matches`;
@@ -107,14 +126,27 @@ export const tennisService = {
   },
 
   // Availability
-  updateAvailability: async (year: string, league: string, matchId: string, playerId: string, status: string) => {
-    const path = `years/${year}/leagues/${league}/matches/${matchId}`;
+  subscribeAvailability: (year: string, league: string, matchId: string, callback: (entries: AvailabilityEntry[]) => void) => {
+    const path = `years/${year}/leagues/${league}/matches/${matchId}/availability`;
+    return onSnapshot(collection(db, path), (snapshot) => {
+      const entries = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AvailabilityEntry));
+      callback(entries);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, path));
+  },
+
+  subscribePlayerAvailability: (year: string, league: string, matchId: string, playerId: string, callback: (status: AvailabilityStatus | undefined) => void) => {
+    const path = `years/${year}/leagues/${league}/matches/${matchId}/availability/${playerId}`;
+    return onSnapshot(doc(db, path), (snap) => {
+      callback(snap.exists() ? (snap.data().status as AvailabilityStatus) : undefined);
+    }, (error) => handleFirestoreError(error, OperationType.GET, path));
+  },
+
+  setAvailability: async (year: string, league: string, matchId: string, playerId: string, status: AvailabilityStatus) => {
+    const path = `years/${year}/leagues/${league}/matches/${matchId}/availability/${playerId}`;
     try {
-      await updateDoc(doc(db, path), {
-        [`availability.${playerId}`]: status
-      });
+      await setDoc(doc(db, path), { status });
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, path);
+      handleFirestoreError(error, OperationType.WRITE, path);
     }
   },
 

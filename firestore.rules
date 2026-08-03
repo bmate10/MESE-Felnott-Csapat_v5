@@ -32,20 +32,20 @@ service cloud.firestore {
 
     function isValidPlayer(data) {
       return data.keys().hasAll(['name', 'rank']) &&
-             data.keys().size() == 2 &&
+             data.keys().hasOnly(['name', 'rank', 'uid']) &&
              data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
-             (data.rank is int || data.rank is float) && data.rank >= 1 && data.rank <= 200;
+             (data.rank is int || data.rank is float) && data.rank >= 1 && data.rank <= 200 &&
+             (!('uid' in data) || (data.uid is string && data.uid.size() > 0));
     }
 
     function isValidMatch(data) {
-      return data.keys().hasAll(['opponent', 'location', 'date', 'season', 'status', 'homeAway', 'availability']) &&
+      return data.keys().hasAll(['opponent', 'location', 'date', 'season', 'status', 'homeAway']) &&
              data.opponent is string && data.opponent.size() > 0 && data.opponent.size() <= 100 &&
              data.location is string && data.location.size() > 0 && data.location.size() <= 200 &&
              data.date is timestamp &&
              data.season in ['Spring', 'Fall'] &&
              data.status in ['Scheduled', 'Completed'] &&
              data.homeAway in ['Home', 'Away'] &&
-             data.availability is map &&
              (!('teamScore' in data) || data.teamScore is int || data.teamScore is float) &&
              (!('opponentScore' in data) || data.opponentScore is int || data.opponentScore is float);
     }
@@ -64,6 +64,12 @@ service cloud.firestore {
         match /players/{playerId} {
           allow read: if isSignedIn();
           allow create, update: if isAdmin() && isValidPlayer(incoming()) && isValidId(playerId);
+          // Self-claim: a signed-in user may link themselves to an unclaimed player,
+          // but only to their own uid, and only while it has no uid yet.
+          allow update: if isSignedIn() &&
+                            !('uid' in existing()) &&
+                            incoming().diff(existing()).affectedKeys().hasOnly(['uid']) &&
+                            incoming().uid == request.auth.uid;
           allow delete: if isAdmin();
         }
 
@@ -72,10 +78,7 @@ service cloud.firestore {
           // Authenticated users can create valid matches
           allow create: if isSignedIn() && isValidMatch(incoming()) && isValidId(matchId);
           allow delete: if isAdmin();
-          
-          allow update: if (isAdmin() && isValidMatch(incoming())) ||
-                         (isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['availability']) && 
-                          incoming().availability is map);
+          allow update: if isAdmin() && isValidMatch(incoming());
 
           match /mvpVotes/{voteId} {
             // voteId should be the userId to enforce one vote per user
@@ -84,6 +87,16 @@ service cloud.firestore {
                            incoming().playerId is string &&
                            incoming().voterId == request.auth.uid;
             allow delete: if isSignedIn() && request.auth.uid == voteId;
+          }
+
+          match /availability/{playerId} {
+            // Only an admin, or the account linked to this specific player, may set it.
+            allow read: if isSignedIn();
+            allow create, update: if (isAdmin() ||
+                                       (isSignedIn() &&
+                                        get(/databases/$(database)/documents/years/$(yearId)/leagues/$(leagueId)/players/$(playerId)).data.uid == request.auth.uid)) &&
+                                      incoming().status in ['Yes', 'No', 'If Needed'];
+            allow delete: if isAdmin();
           }
         }
       }
