@@ -25,8 +25,8 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [year, setYear] = useState('2025');
-  const [league, setLeague] = useState<League>('BP 2');
+  const [year, setYear] = useState(() => String(new Date().getFullYear()));
+  const [league, setLeague] = useState<League>('BP 1');
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
