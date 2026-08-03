@@ -262,7 +262,11 @@ export const Matches: React.FC = () => {
       )}
 
       <div className="flex flex-col gap-6">
-        {matches.map(match => (
+        {[...matches].sort((a, b) => {
+          if (a.status !== b.status) return a.status === 'Scheduled' ? -1 : 1;
+          const diff = a.date.toMillis() - b.date.toMillis();
+          return a.status === 'Scheduled' ? diff : -diff;
+        }).map(match => (
           <section key={match.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden group hover:border-emerald-100 transition-all">
             <div className={cn(
               "px-6 py-3 border-b flex justify-between items-center transition-colors",
