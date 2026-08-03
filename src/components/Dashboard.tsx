@@ -75,7 +75,7 @@ export const Dashboard: React.FC = () => {
 
       await tennisService.addMatch(year, league, {
         opponent: 'City Aces',
-        location: 'Titans Home Court',
+        location: 'M.E.S.E Home Court',
         date: Timestamp.fromDate(oneWeekAgo),
         season: 'Spring',
         homeAway: 'Home',
@@ -197,7 +197,7 @@ export const Dashboard: React.FC = () => {
                     <div className="flex items-center gap-3">
                       <div className="text-center">
                         <p className={cn("text-2xl font-bold", (match.teamScore || 0) > (match.opponentScore || 0) ? "text-slate-800" : "text-slate-400")}>{match.teamScore}</p>
-                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-tight">Titans</p>
+                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-tight">M.E.S.E</p>
                       </div>
                       <div className="text-slate-200 font-light text-2xl mb-4">:</div>
                       <div className="text-center">
@@ -279,7 +279,7 @@ export const Dashboard: React.FC = () => {
              </div>
              <div className="mt-8 pt-6 border-t border-slate-800 flex justify-between items-center text-[9px] font-bold uppercase tracking-widest">
                 <span>Ver 2.4.0</span>
-                <span>Titans TC</span>
+                <span>M.E.S.E</span>
              </div>
           </div>
         </div>

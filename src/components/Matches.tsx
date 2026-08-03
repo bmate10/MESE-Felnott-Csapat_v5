@@ -247,7 +247,7 @@ export const Matches: React.FC = () => {
               {match.status === 'Completed' ? (
                 <div className="mt-8 flex items-center gap-8 bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
                   <div className="flex-1 flex flex-col items-center">
-                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4">Titans TC</span>
+                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4">M.E.S.E</span>
                     {isAdmin ? (
                       <input 
                         type="number" 
