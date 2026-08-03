@@ -335,7 +335,7 @@ export const Matches: React.FC = () => {
                       <select
                         value={match.teamScore ?? 0}
                         onChange={e => updateScore(match.id, parseInt(e.target.value))}
-                        className="w-20 h-16 text-3xl font-light bg-white rounded-xl shadow-inner text-center border border-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
+                        className="w-16 h-16 text-4xl font-bold bg-white rounded-xl text-center border border-slate-150 shadow-sm focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
                       >
                         {Array.from({ length: 10 }, (_, i) => i).map(n => (
                           <option key={n} value={n}>{n}</option>
