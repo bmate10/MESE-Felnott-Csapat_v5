@@ -87,7 +87,8 @@ export const Matches: React.FC = () => {
   // Form state
   const [opponent, setOpponent] = useState('');
   const [location, setLocation] = useState('');
-  const [date, setDate] = useState('');
+  const [matchDate, setMatchDate] = useState('');
+  const [matchHour, setMatchHour] = useState('09');
   const [season, setSeason] = useState<Season>('Spring');
   const [homeAway, setHomeAway] = useState<HomeAway>('Home');
 
@@ -107,24 +108,25 @@ export const Matches: React.FC = () => {
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!opponent || !location || !date) return;
-    
+    if (!opponent || !location || !matchDate) return;
+
     setIsSaving(true);
     setSavingError(null);
     try {
       await tennisService.addMatch(year, league, {
         opponent,
         location,
-        date: Timestamp.fromDate(new Date(date)),
+        date: Timestamp.fromDate(new Date(`${matchDate}T${matchHour}:00`)),
         season,
         homeAway,
         status: 'Scheduled',
         availability: {}
       });
-      
+
       setOpponent('');
       setLocation('');
-      setDate('');
+      setMatchDate('');
+      setMatchHour('09');
       setIsAdding(false);
     } catch (err: any) {
       console.error('Failed to add match:', err);
@@ -199,12 +201,23 @@ export const Matches: React.FC = () => {
             </div>
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Date & Time</label>
-              <input 
-                type="datetime-local" 
-                value={date} 
-                onChange={e => setDate(e.target.value)} 
-                className="bg-slate-50 border border-slate-200 p-3 rounded-xl focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="date"
+                  value={matchDate}
+                  onChange={e => setMatchDate(e.target.value)}
+                  className="flex-1 bg-slate-50 border border-slate-200 p-3 rounded-xl focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all"
+                />
+                <select
+                  value={matchHour}
+                  onChange={e => setMatchHour(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition-all appearance-none cursor-pointer"
+                >
+                  {Array.from({ length: 24 }, (_, h) => String(h).padStart(2, '0')).map(h => (
+                    <option key={h} value={h}>{h}:00</option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Format</label>
