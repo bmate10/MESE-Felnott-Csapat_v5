@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { History, Shield, Trophy, MapPin, ChevronRight } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
@@ -9,6 +10,7 @@ import { Timestamp } from 'firebase/firestore';
 import { cn } from '../lib/utils';
 
 export const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
   const { year, league, user, isAdmin } = useAppContext();
   const [matches, setMatches] = useState<Match[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
@@ -154,7 +156,7 @@ export const Dashboard: React.FC = () => {
           <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
               <h2 className="font-bold text-slate-800">Next Match</h2>
-              <button className="text-xs text-emerald-600 font-bold hover:underline">Full Schedule</button>
+              <button onClick={() => navigate('/matches')} className="text-xs text-emerald-600 font-bold hover:underline">Full Schedule</button>
             </div>
             
             {upcomingMatches.length > 0 ? upcomingMatches.map(match => (
@@ -187,7 +189,7 @@ export const Dashboard: React.FC = () => {
           <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
               <h2 className="font-bold text-slate-800">Recent Results</h2>
-              <button className="text-xs text-emerald-600 font-bold hover:underline">View All</button>
+              <button onClick={() => navigate('/matches')} className="text-xs text-emerald-600 font-bold hover:underline">View All</button>
             </div>
             
             <div className="flex flex-col">
