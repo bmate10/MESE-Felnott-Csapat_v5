@@ -37,6 +37,9 @@ export interface MvpVote {
   voterId: string;
 }
 
+// Sentinel playerId used when a user opts out of voting for a given match.
+export const MVP_SKIP_ID = 'skip';
+
 export enum OperationType {
   CREATE = 'create',
   UPDATE = 'update',

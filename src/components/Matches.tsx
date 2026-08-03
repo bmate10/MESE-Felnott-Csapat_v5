@@ -2,10 +2,79 @@ import React, { useEffect, useState } from 'react';
 import { Plus, Calendar, MapPin, CheckCircle2, Trophy, Users, Info, Trash2, Home, ExternalLink } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { tennisService } from '../services/tennisService';
-import { Match, Player, Season, HomeAway, MatchStatus } from '../types';
+import { Match, Player, Season, HomeAway, MatchStatus, MvpVote, MVP_SKIP_ID } from '../types';
 import { format } from 'date-fns';
 import { cn } from '../lib/utils';
 import { Timestamp } from 'firebase/firestore';
+
+const MvpVoteBox: React.FC<{ year: string; league: string; match: Match; players: Player[]; userId: string }> = ({ year, league, match, players, userId }) => {
+  const [votes, setVotes] = useState<MvpVote[]>([]);
+  const [selected, setSelected] = useState('');
+  const [isVoting, setIsVoting] = useState(false);
+  const [voteError, setVoteError] = useState<string | null>(null);
+
+  useEffect(() => {
+    return tennisService.subscribeMvpVotes(year, league, match.id, setVotes);
+  }, [year, league, match.id]);
+
+  const myVote = votes.find(v => v.voterId === userId);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selected) return;
+    setIsVoting(true);
+    setVoteError(null);
+    try {
+      await tennisService.voteMvp(year, league, match.id, selected, userId);
+    } catch (err: any) {
+      setVoteError(err.message || String(err));
+    } finally {
+      setIsVoting(false);
+    }
+  };
+
+  if (myVote) {
+    const votedPlayer = players.find(p => p.id === myVote.playerId);
+    return (
+      <div className="mt-6 flex items-center gap-2 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 text-xs font-bold text-emerald-700">
+        <Trophy className="w-4 h-4 flex-shrink-0" />
+        {myVote.playerId === MVP_SKIP_ID ? (
+          <span>You skipped the MVP vote for this match.</span>
+        ) : (
+          <span>You voted <span className="text-slate-800">{votedPlayer?.name || 'Unknown Player'}</span> as Match MVP.</span>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-2">
+      <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+        <Trophy className="w-3.5 h-3.5" />
+        Vote for Match MVP
+      </div>
+      <div className="flex gap-2">
+        <select
+          value={selected}
+          onChange={e => setSelected(e.target.value)}
+          className="flex-1 bg-slate-50 border border-slate-200 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition-all appearance-none cursor-pointer text-sm"
+        >
+          <option value="" disabled>Select a player...</option>
+          {players.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          <option value={MVP_SKIP_ID}>Skip — I wasn't there</option>
+        </select>
+        <button
+          type="submit"
+          disabled={!selected || isVoting}
+          className="bg-slate-900 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg disabled:opacity-50"
+        >
+          {isVoting ? 'Submitting...' : 'Submit'}
+        </button>
+      </div>
+      {voteError && <p className="text-[10px] text-red-500 font-bold">{voteError}</p>}
+    </form>
+  );
+};
 
 export const Matches: React.FC = () => {
   const { year, league, user, isAdmin } = useAppContext();
@@ -274,7 +343,13 @@ export const Matches: React.FC = () => {
                     )}
                   </div>
                 </div>
-              ) : (
+              ) : null}
+
+              {match.status === 'Completed' && user ? (
+                <MvpVoteBox year={year} league={league} match={match} players={players} userId={user.uid} />
+              ) : null}
+
+              {match.status !== 'Completed' && (
                 <div className="mt-8 flex flex-col gap-4">
                   <div className="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
                     <span>Rotation Roster Availability</span>

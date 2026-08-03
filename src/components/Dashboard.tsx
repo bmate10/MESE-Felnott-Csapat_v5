@@ -4,7 +4,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { History, Shield, Trophy, MapPin, ChevronRight } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { tennisService } from '../services/tennisService';
-import { Match, Player } from '../types';
+import { Match, Player, MvpVote, MVP_SKIP_ID } from '../types';
 import { format } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
 import { cn } from '../lib/utils';
@@ -14,7 +14,7 @@ export const Dashboard: React.FC = () => {
   const { year, league, user, isAdmin } = useAppContext();
   const [matches, setMatches] = useState<Match[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
-  const [mvpVotes, setMvpVotes] = useState<Record<string, number>>({});
+  const [matchVotesMap, setMatchVotesMap] = useState<Record<string, MvpVote[]>>({});
   const [seedingError, setSeedingError] = useState<string | null>(null);
   const [isSeeding, setIsSeeding] = useState(false);
 
@@ -44,6 +44,57 @@ export const Dashboard: React.FC = () => {
 
   const upcomingMatches = matches.filter(m => m.status === 'Scheduled').slice(0, 1);
   const recentResults = completedMatches.sort((a, b) => b.date.toMillis() - a.date.toMillis()).slice(0, 2);
+
+  // MVP vote aggregation
+  const completedMatchIds = completedMatches.map(m => m.id).sort().join(',');
+
+  useEffect(() => {
+    setMatchVotesMap({});
+    if (!user || completedMatches.length === 0) return;
+    const unsubs = completedMatches.map(m =>
+      tennisService.subscribeMvpVotes(year, league, m.id, (votes) => {
+        setMatchVotesMap(prev => ({ ...prev, [m.id]: votes }));
+      })
+    );
+    return () => unsubs.forEach(unsub => unsub());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [year, league, user, completedMatchIds]);
+
+  const seasonTally: Record<string, number> = {};
+  for (const matchId in matchVotesMap) {
+    matchVotesMap[matchId].forEach(v => {
+      if (v.playerId === MVP_SKIP_ID) return;
+      seasonTally[v.playerId] = (seasonTally[v.playerId] || 0) + 1;
+    });
+  }
+  let leaderId: string | undefined;
+  let leaderVotes = 0;
+  Object.entries(seasonTally).forEach(([pid, count]) => {
+    if (count > leaderVotes) {
+      leaderId = pid;
+      leaderVotes = count;
+    }
+  });
+  const leaderPlayer = players.find(p => p.id === leaderId);
+
+  const matchMvpWins = completedMatches.reduce((acc, m) => {
+    const votes = (matchVotesMap[m.id] || []).filter(v => v.playerId !== MVP_SKIP_ID);
+    if (votes.length === 0) return acc;
+    const tally: Record<string, number> = {};
+    votes.forEach(v => { tally[v.playerId] = (tally[v.playerId] || 0) + 1; });
+    let topId: string | undefined;
+    let topCount = 0;
+    let tied = false;
+    Object.entries(tally).forEach(([pid, count]) => {
+      if (count > topCount) { topId = pid; topCount = count; tied = false; }
+      else if (count === topCount) { tied = true; }
+    });
+    return (!tied && topId === leaderId) ? acc + 1 : acc;
+  }, 0);
+
+  const hasVotedAllMvp = !user || completedMatches.length === 0 || completedMatches.every(m =>
+    (matchVotesMap[m.id] || []).some(v => v.voterId === user.uid)
+  );
 
   const handleSeed = async () => {
     setIsSeeding(true);
@@ -135,8 +186,8 @@ export const Dashboard: React.FC = () => {
               <Trophy className="w-5 h-5 text-emerald-600" />
             </div>
             <div className="flex flex-col">
-              <span className="text-sm font-bold text-slate-800">Marco Silva</span>
-              <span className="text-[10px] uppercase font-bold text-slate-400">12 Votes</span>
+              <span className="text-sm font-bold text-slate-800">{leaderPlayer?.name || 'No Votes Yet'}</span>
+              <span className="text-[10px] uppercase font-bold text-slate-400">{leaderVotes} {leaderVotes === 1 ? 'Vote' : 'Votes'}</span>
             </div>
           </div>
         </div>
@@ -237,24 +288,35 @@ export const Dashboard: React.FC = () => {
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-bold text-slate-800">Season MVP</h2>
-              <span className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded">Voted</span>
+              {hasVotedAllMvp ? (
+                <span className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded">Voted — All Done</span>
+              ) : (
+                <button
+                  onClick={() => navigate('/matches')}
+                  className="text-[10px] bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded hover:bg-amber-200 transition-colors"
+                >
+                  Vote for MVP
+                </button>
+              )}
             </div>
             <div className="flex flex-col items-center">
               <div className="w-24 h-24 rounded-full bg-slate-50 border-4 border-emerald-50 mb-4 flex items-center justify-center p-2">
                 <div className="w-full h-full bg-emerald-500 rounded-full flex items-center justify-center text-white font-bold text-2xl">
-                  MS
+                  {leaderPlayer ? leaderPlayer.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '—'}
                 </div>
               </div>
-              <h3 className="text-xl font-bold text-slate-800">Marco Silva</h3>
-              <p className="text-xs text-slate-400 font-medium mb-6 uppercase tracking-wider">Rank #1 • Season Leader</p>
+              <h3 className="text-xl font-bold text-slate-800">{leaderPlayer?.name || 'No votes yet'}</h3>
+              <p className="text-xs text-slate-400 font-medium mb-6 uppercase tracking-wider">
+                {leaderPlayer ? `Rank #${leaderPlayer.rank} • Season Leader` : 'Cast the first vote after a match'}
+              </p>
               <div className="w-full grid grid-cols-2 gap-3">
                 <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 text-center">
-                  <p className="text-xl font-bold text-slate-800">12</p>
+                  <p className="text-xl font-bold text-slate-800">{leaderVotes}</p>
                   <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Votes</p>
                 </div>
                 <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 text-center">
-                  <p className="text-xl font-bold text-slate-800">8</p>
-                  <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Wins</p>
+                  <p className="text-xl font-bold text-slate-800">{matchMvpWins}</p>
+                  <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">MVP Wins</p>
                 </div>
               </div>
             </div>
