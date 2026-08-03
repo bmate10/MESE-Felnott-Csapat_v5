@@ -259,31 +259,6 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
           </div>
-
-          <div className="bg-slate-900 rounded-2xl p-6 text-slate-400 shadow-xl">
-             <div className="flex items-center gap-2 mb-4">
-                <div className="w-5 h-5 bg-emerald-500 rounded-sm"></div>
-                <h2 className="text-white font-bold text-sm tracking-tight">System Status</h2>
-             </div>
-             <div className="space-y-4">
-               <div className="flex items-start gap-3">
-                  <div className="w-1.5 h-1.5 mt-1.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
-                  <p className="text-xs leading-relaxed">
-                    <span className="text-white font-semibold">Firebase Connected</span>: Roster synching in real-time across devices.
-                  </p>
-               </div>
-               <div className="flex items-start gap-3">
-                  <div className="w-1.5 h-1.5 mt-1.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
-                  <p className="text-xs leading-relaxed">
-                    <span className="text-white font-semibold">Rules Deployed</span>: Secure RBAC protection enabled for member data.
-                  </p>
-               </div>
-             </div>
-             <div className="mt-8 pt-6 border-t border-slate-800 flex justify-between items-center text-[9px] font-bold uppercase tracking-widest">
-                <span>Ver 2.4.0</span>
-                <span>M.E.S.E</span>
-             </div>
-          </div>
         </div>
 
         {matches.length === 0 && (
