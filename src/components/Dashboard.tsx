@@ -77,9 +77,10 @@ export const Dashboard: React.FC = () => {
   });
   const leaderPlayer = players.find(p => p.id === leaderId);
 
-  const matchMvpWins = completedMatches.reduce((acc, m) => {
+  const matchWinnerCounts: Record<string, number> = {};
+  completedMatches.forEach(m => {
     const votes = (matchVotesMap[m.id] || []).filter(v => v.playerId !== MVP_SKIP_ID);
-    if (votes.length === 0) return acc;
+    if (votes.length === 0) return;
     const tally: Record<string, number> = {};
     votes.forEach(v => { tally[v.playerId] = (tally[v.playerId] || 0) + 1; });
     let topId: string | undefined;
@@ -89,8 +90,16 @@ export const Dashboard: React.FC = () => {
       if (count > topCount) { topId = pid; topCount = count; tied = false; }
       else if (count === topCount) { tied = true; }
     });
-    return (!tied && topId === leaderId) ? acc + 1 : acc;
-  }, 0);
+    if (!tied && topId) {
+      matchWinnerCounts[topId] = (matchWinnerCounts[topId] || 0) + 1;
+    }
+  });
+
+  const topMvpPlayers = Object.entries(seasonTally)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([pid]) => players.find(p => p.id === pid))
+    .filter((p): p is Player => !!p);
 
   const hasVotedAllMvp = !user || completedMatches.length === 0 || completedMatches.every(m =>
     (matchVotesMap[m.id] || []).some(v => v.voterId === user.uid)
@@ -209,10 +218,7 @@ export const Dashboard: React.FC = () => {
             <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
               <Trophy className="w-5 h-5 text-emerald-600" />
             </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-bold text-slate-800">{leaderPlayer?.name || 'No Votes Yet'}</span>
-              <span className="text-[10px] uppercase font-bold text-slate-400">{leaderVotes} {leaderVotes === 1 ? 'Vote' : 'Votes'}</span>
-            </div>
+            <span className="text-sm font-bold text-slate-800">{leaderPlayer?.name || 'No Votes Yet'}</span>
           </div>
         </div>
       </section>
@@ -345,26 +351,37 @@ export const Dashboard: React.FC = () => {
                 </button>
               )}
             </div>
-            <div className="flex flex-col items-center">
-              <div className="w-24 h-24 rounded-full bg-slate-50 border-4 border-emerald-50 mb-4 flex items-center justify-center p-2">
-                <div className="w-full h-full bg-emerald-500 rounded-full flex items-center justify-center text-white font-bold text-2xl">
-                  {leaderPlayer ? leaderPlayer.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '—'}
-                </div>
-              </div>
-              <h3 className="text-xl font-bold text-slate-800">{leaderPlayer?.name || 'No votes yet'}</h3>
-              <p className="text-xs text-slate-400 font-medium mb-6 uppercase tracking-wider">
-                {leaderPlayer ? `Rank #${leaderPlayer.rank} • Season Leader` : 'Cast the first vote after a match'}
-              </p>
-              <div className="w-full grid grid-cols-2 gap-3">
-                <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 text-center">
-                  <p className="text-xl font-bold text-slate-800">{leaderVotes}</p>
-                  <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Votes</p>
-                </div>
-                <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 text-center">
-                  <p className="text-xl font-bold text-slate-800">{matchMvpWins}</p>
-                  <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">MVP Wins</p>
-                </div>
-              </div>
+            <div className="flex flex-col gap-2">
+              {topMvpPlayers.length === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-6">Cast the first vote after a match</p>
+              ) : (
+                topMvpPlayers.map((p, i) => (
+                  <div
+                    key={p.id}
+                    className={cn(
+                      "flex items-center justify-between p-3 rounded-xl border",
+                      i === 0 ? "bg-emerald-50 border-emerald-200" : "bg-slate-50 border-slate-100"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className={cn(
+                        "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0",
+                        i === 0 ? "bg-emerald-500 text-white" : "bg-slate-200 text-slate-500"
+                      )}>
+                        {i + 1}
+                      </span>
+                      <div className="flex flex-col">
+                        <span className={cn("text-sm font-bold", i === 0 ? "text-emerald-700" : "text-slate-800")}>{p.name}</span>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Rank #{p.rank}</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className={cn("text-lg font-bold", i === 0 ? "text-emerald-600" : "text-slate-800")}>{matchWinnerCounts[p.id] || 0}</p>
+                      <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">MVP Wins</p>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
