@@ -129,7 +129,7 @@ export const Layout: React.FC = () => {
         </div>
         
         {/* Top Tabs */}
-        <div className="flex gap-6">
+        <div className="hidden sm:flex gap-6">
           {topTabs.map((tab) => (
             <NavLink
               key={tab.path}
@@ -153,7 +153,7 @@ export const Layout: React.FC = () => {
       </main>
 
       {/* Bottom Navigation */}
-      <footer className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 px-6 pb-6 pt-3 flex justify-around items-center">
+      <footer className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 px-1 pb-6 pt-3 flex justify-around items-center">
         <NavLink 
           to="/" 
           className={({ isActive }) => cn(
@@ -164,7 +164,7 @@ export const Layout: React.FC = () => {
           {({ isActive }) => (
             <>
               <Home className={cn("w-5 h-5", isActive ? "fill-current" : "")} />
-              <span className="text-[10px] font-bold uppercase tracking-widest">Dashboard</span>
+              <span className="text-[9px] font-bold uppercase tracking-tight whitespace-nowrap">Dashboard</span>
             </>
           )}
         </NavLink>
@@ -178,7 +178,7 @@ export const Layout: React.FC = () => {
           {({ isActive }) => (
             <>
               <Calendar className={cn("w-5 h-5", isActive ? "fill-current" : "")} />
-              <span className="text-[10px] font-bold uppercase tracking-widest">Matches</span>
+              <span className="text-[9px] font-bold uppercase tracking-tight whitespace-nowrap">Matches</span>
             </>
           )}
         </NavLink>
@@ -192,7 +192,7 @@ export const Layout: React.FC = () => {
           {({ isActive }) => (
             <>
               <CalendarCheck className={cn("w-5 h-5", isActive ? "fill-current" : "")} />
-              <span className="text-[10px] font-bold uppercase tracking-widest">Availability</span>
+              <span className="text-[9px] font-bold uppercase tracking-tight whitespace-nowrap">Availability</span>
             </>
           )}
         </NavLink>
@@ -206,7 +206,7 @@ export const Layout: React.FC = () => {
           {({ isActive }) => (
             <>
               <Users className={cn("w-5 h-5", isActive ? "fill-current" : "")} />
-              <span className="text-[10px] font-bold uppercase tracking-widest">Players</span>
+              <span className="text-[9px] font-bold uppercase tracking-tight whitespace-nowrap">Players</span>
             </>
           )}
         </NavLink>
@@ -220,7 +220,7 @@ export const Layout: React.FC = () => {
           {({ isActive }) => (
             <>
               <Settings className={cn("w-5 h-5", isActive ? "fill-current" : "")} />
-              <span className="text-[10px] font-bold uppercase tracking-widest">Settings</span>
+              <span className="text-[9px] font-bold uppercase tracking-tight whitespace-nowrap">Settings</span>
             </>
           )}
         </NavLink>
