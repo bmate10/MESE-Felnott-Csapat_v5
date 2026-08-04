@@ -76,20 +76,14 @@ const MvpVoteBox: React.FC<{ year: string; league: string; match: Match; players
   );
 };
 
-const AvailabilitySummary: React.FC<{ year: string; league: string; matchId: string; players: Player[] }> = ({ year, league, matchId, players }) => {
-  const [entries, setEntries] = useState<AvailabilityEntry[]>([]);
-
-  useEffect(() => {
-    return tennisService.subscribeAvailability(year, league, matchId, setEntries);
-  }, [year, league, matchId]);
-
+const AvailabilityList: React.FC<{ entries: AvailabilityEntry[]; players: Player[] }> = ({ entries, players }) => {
   const nameOf = (playerId: string) => players.find(p => p.id === playerId)?.name || 'Unknown';
   const available = entries.filter(e => e.status === 'Yes');
   const reserves = entries.filter(e => e.status === 'If Needed');
   const unavailable = entries.filter(e => e.status === 'No');
 
   return (
-    <div className="mt-8 flex flex-col gap-3">
+    <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
         <span>Rotation Roster Availability</span>
         <div className="flex gap-4">
@@ -112,6 +106,123 @@ const AvailabilitySummary: React.FC<{ year: string; league: string; matchId: str
           ))}
         </div>
       )}
+    </div>
+  );
+};
+
+const LineupPicker: React.FC<{
+  players: Player[];
+  entries: AvailabilityEntry[];
+  initialSelection: string[];
+  onConfirm: (playerIds: string[]) => Promise<void>;
+}> = ({ players, entries, initialSelection, onConfirm }) => {
+  const [selection, setSelection] = useState<string[]>(initialSelection);
+  const [isSaving, setIsSaving] = useState(false);
+  const statusOf = (playerId: string) => entries.find(e => e.id === playerId)?.status;
+
+  const toggle = (playerId: string) => {
+    setSelection(prev => prev.includes(playerId) ? prev.filter(id => id !== playerId) : [...prev, playerId]);
+  };
+
+  const handleConfirm = async () => {
+    setIsSaving(true);
+    try {
+      await onConfirm(selection);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
+        <span>Pick Today's Lineup</span>
+        <span>{selection.length} Selected</span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+        {players.map(player => {
+          const status = statusOf(player.id);
+          return (
+            <label key={player.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs cursor-pointer hover:border-emerald-200 transition-all">
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={selection.includes(player.id)}
+                  onChange={() => toggle(player.id)}
+                  className="w-4 h-4 accent-emerald-600"
+                />
+                <span className="font-bold text-slate-700 truncate max-w-[110px]">{player.name}</span>
+              </div>
+              {status && (
+                <span className={cn(
+                  "px-2 py-0.5 rounded text-[9px] font-black uppercase",
+                  status === 'Yes' ? "bg-emerald-100 text-emerald-700" : status === 'If Needed' ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-400"
+                )}>
+                  {status === 'If Needed' ? 'Need' : status}
+                </span>
+              )}
+            </label>
+          );
+        })}
+      </div>
+      <div className="flex justify-end">
+        <button
+          onClick={handleConfirm}
+          disabled={isSaving}
+          className="bg-slate-900 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg disabled:opacity-50"
+        >
+          {isSaving ? 'Saving...' : 'Confirm Lineup'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const MatchRoster: React.FC<{ year: string; league: string; match: Match; players: Player[]; isAdmin: boolean }> = ({ year, league, match, players, isAdmin }) => {
+  const [entries, setEntries] = useState<AvailabilityEntry[]>([]);
+  const [viewAvailability, setViewAvailability] = useState(false);
+
+  useEffect(() => {
+    return tennisService.subscribeAvailability(year, league, match.id, setEntries);
+  }, [year, league, match.id]);
+
+  const selectedPlayerIds = match.selectedPlayerIds || [];
+  const hasLineup = selectedPlayerIds.length > 0;
+  const nameOf = (playerId: string) => players.find(p => p.id === playerId)?.name || 'Unknown';
+
+  const handleConfirm = async (playerIds: string[]) => {
+    await tennisService.setLineup(year, league, match.id, playerIds);
+    setViewAvailability(false);
+  };
+
+  if (!hasLineup || viewAvailability) {
+    return (
+      <div className="mt-8 flex flex-col gap-4">
+        {isAdmin ? (
+          <LineupPicker players={players} entries={entries} initialSelection={selectedPlayerIds} onConfirm={handleConfirm} />
+        ) : (
+          <AvailabilityList entries={entries} players={players} />
+        )}
+        {hasLineup && (
+          <div className="flex justify-end">
+            <button onClick={() => setViewAvailability(false)} className="text-xs text-emerald-600 font-bold hover:underline">Lineup</button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-8 flex flex-col gap-3">
+      <div className="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
+        <span>Playing Today</span>
+        <button onClick={() => setViewAvailability(true)} className="text-emerald-600 hover:underline normal-case font-bold">Availability</button>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {selectedPlayerIds.map(id => (
+          <span key={id} className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-emerald-100 text-emerald-700">{nameOf(id)}</span>
+        ))}
+      </div>
     </div>
   );
 };
@@ -401,7 +512,7 @@ export const Matches: React.FC = () => {
               ) : null}
 
               {match.status !== 'Completed' && (
-                <AvailabilitySummary year={year} league={league} matchId={match.id} players={players} />
+                <MatchRoster year={year} league={league} match={match} players={players} isAdmin={isAdmin} />
               )}
             </div>
           </section>

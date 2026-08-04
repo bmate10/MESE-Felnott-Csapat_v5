@@ -47,7 +47,8 @@ service cloud.firestore {
              data.status in ['Scheduled', 'Completed'] &&
              data.homeAway in ['Home', 'Away'] &&
              (!('teamScore' in data) || data.teamScore is int || data.teamScore is float) &&
-             (!('opponentScore' in data) || data.opponentScore is int || data.opponentScore is float);
+             (!('opponentScore' in data) || data.opponentScore is int || data.opponentScore is float) &&
+             (!('selectedPlayerIds' in data) || data.selectedPlayerIds is list);
     }
 
     match /admins/{uid} {

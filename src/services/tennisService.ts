@@ -116,6 +116,15 @@ export const tennisService = {
     }
   },
 
+  setLineup: async (year: string, league: string, matchId: string, playerIds: string[]) => {
+    const path = `years/${year}/leagues/${league}/matches/${matchId}`;
+    try {
+      await updateDoc(doc(db, path), { selectedPlayerIds: playerIds });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, path);
+    }
+  },
+
   deleteMatch: async (year: string, league: string, matchId: string) => {
     const path = `years/${year}/leagues/${league}/matches/${matchId}`;
     try {

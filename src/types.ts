@@ -20,6 +20,7 @@ export interface Match {
   homeAway: HomeAway;
   teamScore?: number;
   opponentScore?: number;
+  selectedPlayerIds?: string[]; // Admin-picked lineup for the day; empty/absent = not decided yet
 }
 
 // Doc id is the playerId; lives at matches/{matchId}/availability/{playerId}
