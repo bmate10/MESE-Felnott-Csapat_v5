@@ -43,7 +43,7 @@ export const Dashboard: React.FC = () => {
   const winRate = completedMatches.length > 0 ? Math.round((wins / completedMatches.length) * 100) : 0;
 
   const upcomingMatches = matches.filter(m => m.status === 'Scheduled').slice(0, 1);
-  const recentResults = completedMatches.sort((a, b) => b.date.toMillis() - a.date.toMillis()).slice(0, 2);
+  const recentResults = completedMatches.sort((a, b) => b.date.toMillis() - a.date.toMillis()).slice(0, 3);
 
   // MVP vote aggregation
   const completedMatchIds = completedMatches.map(m => m.id).sort().join(',');
@@ -289,7 +289,7 @@ export const Dashboard: React.FC = () => {
                         <p className={cn("text-2xl font-bold", (match.teamScore || 0) > (match.opponentScore || 0) ? "text-slate-800" : "text-slate-400")}>{match.teamScore}</p>
                         <p className="text-[10px] uppercase font-bold text-slate-400 tracking-tight">M.E.S.E</p>
                       </div>
-                      <div className="text-slate-200 font-light text-2xl mb-4">:</div>
+                      <div className="text-slate-200 font-light text-2xl">:</div>
                       <div className="text-center">
                         <p className={cn("text-2xl font-bold", (match.opponentScore || 0) > (match.teamScore || 0) ? "text-slate-800" : "text-slate-400")}>{match.opponentScore}</p>
                         <p className="text-[10px] uppercase font-bold text-slate-400 tracking-tight">{match.opponent.split(' ')[0]}</p>
@@ -297,18 +297,17 @@ export const Dashboard: React.FC = () => {
                     </div>
                     <div className="hidden sm:block h-10 w-px bg-slate-100"></div>
                     <div className="hidden sm:block">
-                      <p className="text-xs font-bold text-slate-800 mb-0.5">Match Day Result</p>
-                      <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">{format(match.date.toDate(), 'MMMM d, yyyy')}</p>
+                      <p className="text-xs font-bold text-slate-700">{format(match.date.toDate(), 'MMMM d, yyyy')}</p>
                     </div>
                   </div>
-                  
-                  <div className="text-right">
-                    <p className={cn(
-                      "text-xs font-bold uppercase tracking-widest",
-                      (match.teamScore || 0) > (match.opponentScore || 0) ? "text-emerald-600" : "text-slate-400"
+
+                  <div className="text-right flex flex-col items-end gap-1">
+                    <span className={cn(
+                      "text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded",
+                      (match.teamScore || 0) > (match.opponentScore || 0) ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-500"
                     )}>
                       {(match.teamScore || 0) > (match.opponentScore || 0) ? 'WIN' : 'LOSS'}
-                    </p>
+                    </span>
                     <button className="text-[10px] text-slate-400 hover:text-emerald-600 font-bold transition-colors">DETAILS</button>
                   </div>
                 </div>
