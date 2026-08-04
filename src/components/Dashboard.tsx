@@ -195,20 +195,12 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="p-6 flex flex-col gap-8 pb-32 bg-slate-50">
       {/* Key Stats Grid */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <section className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         <div className="bg-emerald-600 p-6 rounded-2xl shadow-sm flex flex-col justify-between text-white min-h-[120px]">
           <span className="text-[10px] font-bold text-emerald-200 uppercase tracking-wider">Season Win Rate</span>
           <div className="flex items-baseline gap-2">
             <span className="text-4xl font-light">{winRate}%</span>
             <span className="text-emerald-200 text-sm font-bold">{wins}W / {losses}L</span>
-          </div>
-        </div>
-
-        <div className="tonal-card p-6 flex flex-col justify-between min-h-[120px]">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Matches</span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-4xl font-light text-slate-800">{completedMatches.length}</span>
-            <span className="text-slate-400 text-sm">Played</span>
           </div>
         </div>
 
