@@ -3,7 +3,7 @@ import { Plus, Calendar, MapPin, CheckCircle2, Trophy, Users, Info, Trash2, Home
 import { useAppContext } from '../context/AppContext';
 import { tennisService } from '../services/tennisService';
 import { Match, Player, Season, HomeAway, MatchStatus, MvpVote, MVP_SKIP_ID, AvailabilityEntry } from '../types';
-import { format } from 'date-fns';
+import { format, getISOWeek, getISOWeekYear } from 'date-fns';
 import { cn } from '../lib/utils';
 import { Timestamp } from 'firebase/firestore';
 
@@ -115,7 +115,8 @@ const LineupPicker: React.FC<{
   entries: AvailabilityEntry[];
   initialSelection: string[];
   onConfirm: (playerIds: string[]) => Promise<void>;
-}> = ({ players, entries, initialSelection, onConfirm }) => {
+  compact?: boolean;
+}> = ({ players, entries, initialSelection, onConfirm, compact }) => {
   const [selection, setSelection] = useState<string[]>(initialSelection);
   const [isSaving, setIsSaving] = useState(false);
   const statusOf = (playerId: string) => entries.find(e => e.id === playerId)?.status;
@@ -139,7 +140,7 @@ const LineupPicker: React.FC<{
         <span>Pick Today's Lineup</span>
         <span>{selection.length} Selected</span>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+      <div className={cn("grid gap-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar", compact ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2")}>
         {players.map(player => {
           const status = statusOf(player.id);
           return (
@@ -178,7 +179,7 @@ const LineupPicker: React.FC<{
   );
 };
 
-const MatchRoster: React.FC<{ year: string; league: string; match: Match; players: Player[]; isAdmin: boolean }> = ({ year, league, match, players, isAdmin }) => {
+const MatchRoster: React.FC<{ year: string; league: string; match: Match; players: Player[]; isAdmin: boolean; compact?: boolean }> = ({ year, league, match, players, isAdmin, compact }) => {
   const [entries, setEntries] = useState<AvailabilityEntry[]>([]);
   const [viewAvailability, setViewAvailability] = useState(false);
 
@@ -199,7 +200,7 @@ const MatchRoster: React.FC<{ year: string; league: string; match: Match; player
     return (
       <div className="mt-8 flex flex-col gap-4">
         {isAdmin ? (
-          <LineupPicker players={players} entries={entries} initialSelection={selectedPlayerIds} onConfirm={handleConfirm} />
+          <LineupPicker players={players} entries={entries} initialSelection={selectedPlayerIds} onConfirm={handleConfirm} compact={compact} />
         ) : (
           <AvailabilityList entries={entries} players={players} />
         )}
@@ -224,6 +225,121 @@ const MatchRoster: React.FC<{ year: string; league: string; match: Match; player
         ))}
       </div>
     </div>
+  );
+};
+
+const MatchCard: React.FC<{
+  year: string;
+  league: string;
+  match: Match;
+  players: Player[];
+  isAdmin: boolean;
+  userId?: string;
+  onDelete: (id: string) => void;
+  onToggleStatus: (match: Match) => void;
+  onUpdateScore: (matchId: string, team: number) => void;
+  compact?: boolean;
+}> = ({ year, league, match, players, isAdmin, userId, onDelete, onToggleStatus, onUpdateScore, compact }) => {
+  return (
+    <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden group hover:border-emerald-100 transition-all h-full">
+      <div className={cn(
+        "px-6 py-3 border-b flex justify-between items-center transition-colors",
+        match.status === 'Completed' ? "bg-slate-50 border-slate-100" : "bg-emerald-50/30 border-emerald-100"
+      )}>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-white rounded-lg border border-slate-200 flex flex-col items-center justify-center text-slate-500 shadow-sm">
+             <span className="text-[8px] uppercase font-black leading-none mb-0.5">{format(match.date.toDate(), 'MMM')}</span>
+             <span className="text-sm font-black leading-none">{format(match.date.toDate(), 'd')}</span>
+          </div>
+          <div>
+             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{match.season} League</p>
+             <p className="text-xs font-bold text-slate-800">{format(match.date.toDate(), 'EEEE, h:mm a')}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+           <span className={cn(
+             "px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-widest shadow-sm",
+             match.homeAway === 'Home' ? "bg-emerald-600 text-white" : "bg-slate-800 text-white"
+           )}>
+             {match.homeAway}
+           </span>
+           {isAdmin && (
+             <button onClick={() => onDelete(match.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors">
+                <Trash2 className="w-4 h-4" />
+             </button>
+           )}
+        </div>
+      </div>
+
+      <div className="p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+          <div>
+            <h4 className="text-xl font-bold text-slate-800 mb-1 group-hover:text-emerald-700 transition-colors">{match.opponent}</h4>
+            <div className="flex items-center gap-2 text-slate-400 text-xs font-medium">
+              <MapPin className="w-4 h-4 text-emerald-500" />
+              {match.location}
+            </div>
+          </div>
+
+          {isAdmin ? (
+            <button
+              onClick={() => onToggleStatus(match)}
+              className={cn(
+                "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border",
+                match.status === 'Completed'
+                  ? "bg-emerald-100 border-emerald-200 text-emerald-700"
+                  : "bg-white border-slate-200 text-slate-400 hover:border-emerald-500 hover:text-emerald-600"
+              )}
+            >
+              {match.status}
+            </button>
+          ) : (
+            <span className={cn(
+              "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border font-bold",
+              match.status === 'Completed'
+                ? "bg-emerald-100/30 border-emerald-100 text-emerald-750"
+                : "bg-slate-50 border-slate-200 text-slate-400"
+            )}>
+              {match.status}
+            </span>
+          )}
+        </div>
+
+        {match.status === 'Completed' ? (
+          <div className="mt-8 flex items-center gap-8 bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
+            <div className="flex-1 flex flex-col items-center">
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4">M.E.S.E</span>
+              {isAdmin ? (
+                <select
+                  value={match.teamScore ?? 0}
+                  onChange={e => onUpdateScore(match.id, parseInt(e.target.value))}
+                  className="w-16 h-16 text-4xl font-bold bg-white rounded-xl text-center border border-slate-150 shadow-sm focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
+                >
+                  {Array.from({ length: 10 }, (_, i) => i).map(n => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
+              ) : (
+                <span className="w-16 h-16 text-4xl font-bold flex items-center justify-center text-slate-800 bg-white rounded-xl border border-slate-150 shadow-sm">{match.teamScore}</span>
+              )}
+            </div>
+            <div className="text-3xl font-light text-slate-200 self-end mb-4">:</div>
+            <div className="flex-1 flex flex-col items-center">
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4">{match.opponent.split(' ')[0]}</span>
+              <span className="w-16 h-16 text-4xl font-bold flex items-center justify-center text-slate-800 bg-white rounded-xl border border-slate-150 shadow-sm">{match.opponentScore}</span>
+            </div>
+          </div>
+        ) : null}
+
+        {match.status === 'Completed' && userId ? (
+          <MvpVoteBox year={year} league={league} match={match} players={players} userId={userId} />
+        ) : null}
+
+        {match.status !== 'Completed' && (
+          <MatchRoster year={year} league={league} match={match} players={players} isAdmin={isAdmin} compact={compact} />
+        )}
+      </div>
+    </section>
   );
 };
 
@@ -305,6 +421,39 @@ export const Matches: React.FC = () => {
   // A match is always 6 singles + 3 doubles, so the two scores always sum to 9.
   const updateScore = async (matchId: string, team: number) => {
     await tennisService.updateMatch(year, league, matchId, { teamScore: team, opponentScore: 9 - team });
+  };
+
+  const sortedMatches = [...matches].sort((a, b) => {
+    if (a.status !== b.status) return a.status === 'Scheduled' ? -1 : 1;
+    const diff = a.date.toMillis() - b.date.toMillis();
+    return a.status === 'Scheduled' ? diff : -diff;
+  });
+
+  // Group into weekends: an ISO week always contains both days of a calendar
+  // weekend, so this groups Sat+Sun together while still handling a
+  // postponed/single-match weekend gracefully.
+  const weekendGroups: { key: string; matches: Match[] }[] = [];
+  sortedMatches.forEach(match => {
+    const d = match.date.toDate();
+    const key = `${getISOWeekYear(d)}-${getISOWeek(d)}-${match.status}`;
+    const last = weekendGroups[weekendGroups.length - 1];
+    if (last && last.key === key) {
+      last.matches.push(match);
+    } else {
+      weekendGroups.push({ key, matches: [match] });
+    }
+  });
+  // Within a group, always show the earlier date on the left, regardless of
+  // whether the overall section (upcoming vs completed) sorts asc or desc.
+  weekendGroups.forEach(group => group.matches.sort((a, b) => a.date.toMillis() - b.date.toMillis()));
+
+  const formatWeekendRange = (group: Match[]) => {
+    const dates = group.map(m => m.date.toDate()).sort((a, b) => a.getTime() - b.getTime());
+    const start = dates[0];
+    const end = dates[dates.length - 1];
+    if (start.toDateString() === end.toDateString()) return format(start, 'MMMM d');
+    if (format(start, 'MMMM yyyy') === format(end, 'MMMM yyyy')) return `${format(start, 'MMMM d')} – ${format(end, 'd')}`;
+    return `${format(start, 'MMM d')} – ${format(end, 'MMM d')}`;
   };
 
   return (
@@ -411,111 +560,32 @@ export const Matches: React.FC = () => {
         </form>
       )}
 
-      <div className="flex flex-col gap-6">
-        {[...matches].sort((a, b) => {
-          if (a.status !== b.status) return a.status === 'Scheduled' ? -1 : 1;
-          const diff = a.date.toMillis() - b.date.toMillis();
-          return a.status === 'Scheduled' ? diff : -diff;
-        }).map(match => (
-          <section key={match.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden group hover:border-emerald-100 transition-all">
-            <div className={cn(
-              "px-6 py-3 border-b flex justify-between items-center transition-colors",
-              match.status === 'Completed' ? "bg-slate-50 border-slate-100" : "bg-emerald-50/30 border-emerald-100"
-            )}>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-white rounded-lg border border-slate-200 flex flex-col items-center justify-center text-slate-500 shadow-sm">
-                   <span className="text-[8px] uppercase font-black leading-none mb-0.5">{format(match.date.toDate(), 'MMM')}</span>
-                   <span className="text-sm font-black leading-none">{format(match.date.toDate(), 'd')}</span>
-                </div>
-                <div>
-                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{match.season} League</p>
-                   <p className="text-xs font-bold text-slate-800">{format(match.date.toDate(), 'EEEE, h:mm a')}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                 <span className={cn(
-                   "px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-widest shadow-sm",
-                   match.homeAway === 'Home' ? "bg-emerald-600 text-white" : "bg-slate-800 text-white"
-                 )}>
-                   {match.homeAway}
-                 </span>
-                 {isAdmin && (
-                   <button onClick={() => handleDelete(match.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors">
-                      <Trash2 className="w-4 h-4" />
-                   </button>
-                 )}
-              </div>
+      <div className="flex flex-col gap-8">
+        {weekendGroups.map(group => (
+          <div key={group.key} className="flex flex-col gap-4">
+            <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              <Calendar className="w-3.5 h-3.5" />
+              {formatWeekendRange(group.matches)}
             </div>
-
-            <div className="p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                <div>
-                  <h4 className="text-xl font-bold text-slate-800 mb-1 group-hover:text-emerald-700 transition-colors">{match.opponent}</h4>
-                  <div className="flex items-center gap-2 text-slate-400 text-xs font-medium">
-                    <MapPin className="w-4 h-4 text-emerald-500" />
-                    {match.location}
-                  </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {group.matches.map(match => (
+                <div key={match.id} className={group.matches.length === 1 ? "lg:col-span-2" : ""}>
+                  <MatchCard
+                    year={year}
+                    league={league}
+                    match={match}
+                    players={players}
+                    isAdmin={isAdmin}
+                    userId={user?.uid}
+                    onDelete={handleDelete}
+                    onToggleStatus={toggleStatus}
+                    onUpdateScore={updateScore}
+                    compact={group.matches.length > 1}
+                  />
                 </div>
-                
-                {isAdmin ? (
-                  <button 
-                    onClick={() => toggleStatus(match)}
-                    className={cn(
-                      "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border",
-                      match.status === 'Completed' 
-                        ? "bg-emerald-100 border-emerald-200 text-emerald-700" 
-                        : "bg-white border-slate-200 text-slate-400 hover:border-emerald-500 hover:text-emerald-600"
-                    )}
-                  >
-                    {match.status}
-                  </button>
-                ) : (
-                  <span className={cn(
-                    "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border font-bold",
-                    match.status === 'Completed' 
-                      ? "bg-emerald-100/30 border-emerald-100 text-emerald-750" 
-                      : "bg-slate-50 border-slate-200 text-slate-400"
-                  )}>
-                    {match.status}
-                  </span>
-                )}
-              </div>
-
-              {match.status === 'Completed' ? (
-                <div className="mt-8 flex items-center gap-8 bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
-                  <div className="flex-1 flex flex-col items-center">
-                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4">M.E.S.E</span>
-                    {isAdmin ? (
-                      <select
-                        value={match.teamScore ?? 0}
-                        onChange={e => updateScore(match.id, parseInt(e.target.value))}
-                        className="w-16 h-16 text-4xl font-bold bg-white rounded-xl text-center border border-slate-150 shadow-sm focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
-                      >
-                        {Array.from({ length: 10 }, (_, i) => i).map(n => (
-                          <option key={n} value={n}>{n}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <span className="w-16 h-16 text-4xl font-bold flex items-center justify-center text-slate-800 bg-white rounded-xl border border-slate-150 shadow-sm">{match.teamScore}</span>
-                    )}
-                  </div>
-                  <div className="text-3xl font-light text-slate-200 self-end mb-4">:</div>
-                  <div className="flex-1 flex flex-col items-center">
-                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4">{match.opponent.split(' ')[0]}</span>
-                    <span className="w-16 h-16 text-4xl font-bold flex items-center justify-center text-slate-800 bg-white rounded-xl border border-slate-150 shadow-sm">{match.opponentScore}</span>
-                  </div>
-                </div>
-              ) : null}
-
-              {match.status === 'Completed' && user ? (
-                <MvpVoteBox year={year} league={league} match={match} players={players} userId={user.uid} />
-              ) : null}
-
-              {match.status !== 'Completed' && (
-                <MatchRoster year={year} league={league} match={match} players={players} isAdmin={isAdmin} />
-              )}
+              ))}
             </div>
-          </section>
+          </div>
         ))}
       </div>
     </div>
