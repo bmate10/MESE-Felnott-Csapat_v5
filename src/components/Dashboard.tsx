@@ -195,7 +195,7 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="p-6 flex flex-col gap-8 pb-32 bg-slate-50">
       {/* Key Stats Grid */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <div className="bg-emerald-600 p-6 rounded-2xl shadow-sm flex flex-col justify-between text-white min-h-[120px]">
           <span className="text-[10px] font-bold text-emerald-200 uppercase tracking-wider">Season Win Rate</span>
           <div className="flex items-baseline gap-2">
@@ -211,6 +211,29 @@ export const Dashboard: React.FC = () => {
               <Trophy className="w-5 h-5 text-emerald-600" />
             </div>
             <span className="text-sm font-bold text-slate-800">{leaderPlayer?.name || 'No Votes Yet'}</span>
+          </div>
+        </div>
+
+        <div className="tonal-card p-6 flex flex-col justify-between min-h-[120px]">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Availability</span>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-sm font-bold text-slate-800">
+              {myPlayers.length === 0
+                ? 'Not Linked'
+                : missingAvailabilityCount === 0
+                  ? 'All Set'
+                  : `${missingAvailabilityCount} Needed`}
+            </span>
+            {myPlayers.length === 0 || missingAvailabilityCount > 0 ? (
+              <button
+                onClick={() => navigate('/my-availability')}
+                className="text-[10px] bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded hover:bg-amber-200 transition-colors"
+              >
+                {myPlayers.length === 0 ? 'Link' : 'Update'}
+              </button>
+            ) : (
+              <span className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded">Done</span>
+            )}
           </div>
         </div>
       </section>
@@ -299,36 +322,6 @@ export const Dashboard: React.FC = () => {
 
         {/* Right Column / Sidebar */}
         <div className="lg:col-span-4 space-y-6">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-slate-800">Availability</h2>
-              {myPlayers.length === 0 ? (
-                <button
-                  onClick={() => navigate('/my-availability')}
-                  className="text-[10px] bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded hover:bg-amber-200 transition-colors"
-                >
-                  Link Your Profile
-                </button>
-              ) : missingAvailabilityCount === 0 ? (
-                <span className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded">All Set</span>
-              ) : (
-                <button
-                  onClick={() => navigate('/my-availability')}
-                  className="text-[10px] bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded hover:bg-amber-200 transition-colors"
-                >
-                  {missingAvailabilityCount} Needed
-                </button>
-              )}
-            </div>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              {myPlayers.length === 0
-                ? 'Link your player profile to start marking your availability for upcoming matches.'
-                : missingAvailabilityCount === 0
-                  ? "You're up to date on all upcoming matches."
-                  : `${missingAvailabilityCount} response${missingAvailabilityCount === 1 ? '' : 's'} needed across ${scheduledMatches.length} upcoming match${scheduledMatches.length === 1 ? '' : 'es'}.`}
-            </p>
-          </div>
-
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-bold text-slate-800">Season MVP</h2>
