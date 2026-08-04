@@ -186,12 +186,12 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="p-6 flex flex-col gap-8 pb-32 bg-slate-50">
       {/* Key Stats Grid */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="tonal-card p-6 flex flex-col justify-between min-h-[120px]">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Season Win Rate</span>
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="bg-emerald-600 p-6 rounded-2xl shadow-sm flex flex-col justify-between text-white min-h-[120px]">
+          <span className="text-[10px] font-bold text-emerald-200 uppercase tracking-wider">Season Win Rate</span>
           <div className="flex items-baseline gap-2">
-            <span className="text-4xl font-light text-slate-800">{winRate}%</span>
-            <span className="text-emerald-500 text-sm font-bold">{wins}W / {losses}L</span>
+            <span className="text-4xl font-light">{winRate}%</span>
+            <span className="text-emerald-200 text-sm font-bold">{wins}W / {losses}L</span>
           </div>
         </div>
 
@@ -213,14 +213,6 @@ export const Dashboard: React.FC = () => {
               <span className="text-sm font-bold text-slate-800">{leaderPlayer?.name || 'No Votes Yet'}</span>
               <span className="text-[10px] uppercase font-bold text-slate-400">{leaderVotes} {leaderVotes === 1 ? 'Vote' : 'Votes'}</span>
             </div>
-          </div>
-        </div>
-
-        <div className="bg-emerald-600 p-6 rounded-2xl shadow-sm flex flex-col justify-between text-white min-h-[120px]">
-          <span className="text-[10px] font-bold text-emerald-200 uppercase tracking-wider">Team Ranking</span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-4xl font-light">#2</span>
-            <span className="text-emerald-200 text-sm">in {league}</span>
           </div>
         </div>
       </section>
