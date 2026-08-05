@@ -226,7 +226,7 @@ export const Dashboard: React.FC = () => {
             </span>
             {myPlayers.length === 0 || missingAvailabilityCount > 0 ? (
               <button
-                onClick={() => navigate('/my-availability')}
+                onClick={() => navigate('/matches')}
                 className="text-[10px] bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded hover:bg-amber-200 transition-colors"
               >
                 {myPlayers.length === 0 ? 'Link' : 'Update'}

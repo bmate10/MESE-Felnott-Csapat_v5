@@ -1,78 +1,57 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Calendar, MapPin, CheckCircle2, Trophy, Users, Info, Trash2, Home, ExternalLink } from 'lucide-react';
+import { Plus, Calendar, MapPin, Trophy, Trash2, UserCheck } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { tennisService } from '../services/tennisService';
-import { Match, Player, Season, HomeAway, MatchStatus, MvpVote, MVP_SKIP_ID, AvailabilityEntry } from '../types';
+import { Match, Player, Season, HomeAway, MatchStatus, MvpVote, MVP_SKIP_ID, AvailabilityEntry, AvailabilityStatus } from '../types';
 import { format, getISOWeek, getISOWeekYear } from 'date-fns';
 import { cn } from '../lib/utils';
 import { Timestamp } from 'firebase/firestore';
 
-const MvpVoteBox: React.FC<{ year: string; league: string; match: Match; players: Player[]; userId: string }> = ({ year, league, match, players, userId }) => {
-  const [votes, setVotes] = useState<MvpVote[]>([]);
-  const [selected, setSelected] = useState('');
-  const [isVoting, setIsVoting] = useState(false);
-  const [voteError, setVoteError] = useState<string | null>(null);
+const MyAvailabilityRow: React.FC<{ year: string; league: string; matchId: string; myPlayers: Player[] }> = ({ year, league, matchId, myPlayers }) => {
+  const [statusMap, setStatusMap] = useState<Record<string, AvailabilityStatus | undefined>>({});
+  const myPlayerIds = myPlayers.map(p => p.id).join(',');
 
   useEffect(() => {
-    return tennisService.subscribeMvpVotes(year, league, match.id, setVotes);
-  }, [year, league, match.id]);
-
-  const myVote = votes.find(v => v.voterId === userId);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selected) return;
-    setIsVoting(true);
-    setVoteError(null);
-    try {
-      await tennisService.voteMvp(year, league, match.id, selected, userId);
-    } catch (err: any) {
-      setVoteError(err.message || String(err));
-    } finally {
-      setIsVoting(false);
-    }
-  };
-
-  if (myVote) {
-    const votedPlayer = players.find(p => p.id === myVote.playerId);
-    return (
-      <div className="mt-6 flex items-center gap-2 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 text-xs font-bold text-emerald-700">
-        <Trophy className="w-4 h-4 flex-shrink-0" />
-        {myVote.playerId === MVP_SKIP_ID ? (
-          <span>You skipped the MVP vote for this match.</span>
-        ) : (
-          <span>You voted <span className="text-slate-800">{votedPlayer?.name || 'Unknown Player'}</span> as Match MVP.</span>
-        )}
-      </div>
+    setStatusMap({});
+    if (myPlayers.length === 0) return;
+    const unsubs = myPlayers.map(p =>
+      tennisService.subscribePlayerAvailability(year, league, matchId, p.id, (status) => {
+        setStatusMap(prev => ({ ...prev, [p.id]: status }));
+      })
     );
-  }
+    return () => unsubs.forEach(u => u());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [year, league, matchId, myPlayerIds]);
+
+  if (myPlayers.length === 0) return null;
 
   return (
-    <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-2">
-      <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-        <Trophy className="w-3.5 h-3.5" />
-        Vote for Match MVP
-      </div>
-      <div className="flex gap-2">
-        <select
-          value={selected}
-          onChange={e => setSelected(e.target.value)}
-          className="flex-1 bg-slate-50 border border-slate-200 p-3 rounded-xl focus:outline-none focus:border-emerald-500 transition-all appearance-none cursor-pointer text-sm"
-        >
-          <option value="" disabled>Select a player...</option>
-          {players.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          <option value={MVP_SKIP_ID}>Skip — I wasn't there</option>
-        </select>
-        <button
-          type="submit"
-          disabled={!selected || isVoting}
-          className="bg-slate-900 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg disabled:opacity-50"
-        >
-          {isVoting ? 'Submitting...' : 'Submit'}
-        </button>
-      </div>
-      {voteError && <p className="text-[10px] text-red-500 font-bold">{voteError}</p>}
-    </form>
+    <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col gap-2">
+      {myPlayers.map(player => {
+        const status = statusMap[player.id];
+        return (
+          <div key={player.id} className="flex items-center justify-between gap-3">
+            <span className="text-xs font-bold text-slate-700 truncate">{player.name}</span>
+            <div className="flex gap-1.5 flex-shrink-0">
+              {(['Yes', 'No', 'If Needed'] as AvailabilityStatus[]).map(s => (
+                <button
+                  key={s}
+                  onClick={() => tennisService.setAvailability(year, league, matchId, player.id, s)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all",
+                    status === s
+                      ? (s === 'Yes' ? "bg-emerald-600 text-white shadow-sm" : s === 'No' ? "bg-slate-800 text-white" : "bg-amber-500 text-white")
+                      : "bg-white border border-slate-200 text-slate-400 hover:border-emerald-200 hover:text-emerald-500"
+                  )}
+                >
+                  {s === 'If Needed' ? 'Need' : s}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 };
 
@@ -92,7 +71,7 @@ const AvailabilityList: React.FC<{ entries: AvailabilityEntry[]; players: Player
         </div>
       </div>
       {entries.length === 0 ? (
-        <p className="text-xs text-slate-400 italic py-2">No responses yet. Set yours from the My Availability tab.</p>
+        <p className="text-xs text-slate-400 italic py-2">No responses yet.</p>
       ) : (
         <div className="flex flex-wrap gap-2">
           {available.map(e => (
@@ -217,13 +196,65 @@ const LineupPicker: React.FC<{
   );
 };
 
-const MatchRoster: React.FC<{ year: string; league: string; match: Match; players: Player[]; isAdmin: boolean; compact?: boolean }> = ({ year, league, match, players, isAdmin, compact }) => {
+const LineupRow: React.FC<{
+  player: Player;
+  slot?: number;
+  canVote: boolean;
+  isMyVote: boolean;
+  hasVoted: boolean;
+  onVote: () => void;
+}> = ({ player, slot, canVote, isMyVote, hasVoted, onVote }) => {
+  const content = (
+    <>
+      <span className="flex items-center gap-1.5 min-w-0">
+        {slot !== undefined && (
+          <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[9px] font-black flex-shrink-0">{slot}</span>
+        )}
+        <span className="font-bold text-slate-700 truncate">{player.name}</span>
+        <span className="text-slate-400 text-[10px] flex-shrink-0">#{player.rank}</span>
+      </span>
+      {isMyVote && (
+        <span className="flex items-center gap-1 text-[9px] font-black text-emerald-600 uppercase flex-shrink-0">
+          <Trophy className="w-3 h-3" /> MVP
+        </span>
+      )}
+      {canVote && !hasVoted && (
+        <span className="text-[9px] font-black text-slate-300 group-hover:text-emerald-600 uppercase tracking-wider flex-shrink-0 transition-colors">MVP</span>
+      )}
+    </>
+  );
+
+  if (canVote && !hasVoted) {
+    return (
+      <button onClick={onVote} className="group flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs bg-slate-50 border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/50 transition-all text-left">
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <div className={cn(
+      "flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs border",
+      isMyVote ? "bg-emerald-50 border-emerald-200" : "bg-slate-50 border-slate-100"
+    )}>
+      {content}
+    </div>
+  );
+};
+
+const MatchRoster: React.FC<{ year: string; league: string; match: Match; players: Player[]; isAdmin: boolean; userId?: string; compact?: boolean }> = ({ year, league, match, players, isAdmin, userId, compact }) => {
   const [entries, setEntries] = useState<AvailabilityEntry[]>([]);
   const [viewAvailability, setViewAvailability] = useState(false);
+  const [mvpVotes, setMvpVotes] = useState<MvpVote[]>([]);
 
   useEffect(() => {
     return tennisService.subscribeAvailability(year, league, match.id, setEntries);
   }, [year, league, match.id]);
+
+  useEffect(() => {
+    if (match.status !== 'Completed') return;
+    return tennisService.subscribeMvpVotes(year, league, match.id, setMvpVotes);
+  }, [year, league, match.id, match.status]);
 
   const lineupSingles = match.lineupSingles || [];
   const lineupDoubles = match.lineupDoubles || [];
@@ -233,6 +264,14 @@ const MatchRoster: React.FC<{ year: string; league: string; match: Match; player
   const handleConfirm = async (singles: string[], doubles: string[]) => {
     await tennisService.setLineup(year, league, match.id, singles, doubles);
     setViewAvailability(false);
+  };
+
+  const myVote = userId ? mvpVotes.find(v => v.voterId === userId) : undefined;
+  const canVote = match.status === 'Completed' && !!userId;
+
+  const handleVote = async (playerId: string) => {
+    if (!userId || myVote) return;
+    await tennisService.voteMvp(year, league, match.id, playerId, userId);
   };
 
   if (!hasLineup || viewAvailability) {
@@ -263,34 +302,57 @@ const MatchRoster: React.FC<{ year: string; league: string; match: Match; player
     .sort((a, b) => a.rank - b.rank);
 
   return (
-    <div className="mt-8 flex flex-col gap-4">
+    <div className="mt-8 flex flex-col gap-3">
       <div className="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
         <span>Playing Today</span>
         <button onClick={() => setViewAvailability(true)} className="text-emerald-600 hover:underline normal-case font-bold">Availability</button>
       </div>
-      <div className="flex flex-col gap-1.5">
-        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Singles</span>
-        <div className="flex flex-wrap gap-2">
-          {singlesSorted.length === 0 && <span className="text-xs text-slate-400 italic">None selected</span>}
-          {singlesSorted.map((p, i) => (
-            <span key={p.id} className="flex items-center gap-1.5 pl-1.5 pr-3 py-1 rounded-lg text-[10px] font-bold bg-emerald-100 text-emerald-700">
-              <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[9px] font-black flex-shrink-0">{i + 1}</span>
-              {p.name} <span className="text-emerald-500">#{p.rank}</span>
-            </span>
-          ))}
-        </div>
-      </div>
-      {doublesSorted.length > 0 && (
+      <div className={cn("grid gap-4", doublesSorted.length > 0 ? "grid-cols-2" : "grid-cols-1")}>
         <div className="flex flex-col gap-1.5">
-          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Doubles</span>
-          <div className="flex flex-wrap gap-2">
-            {doublesSorted.map(p => (
-              <span key={p.id} className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-sky-100 text-sky-700">
-                {p.name} <span className="text-sky-500">#{p.rank}</span>
-              </span>
+          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Singles</span>
+          <div className="flex flex-col gap-1.5">
+            {singlesSorted.length === 0 && <span className="text-xs text-slate-400 italic">None selected</span>}
+            {singlesSorted.map((p, i) => (
+              <LineupRow
+                key={p.id}
+                player={p}
+                slot={i + 1}
+                canVote={canVote}
+                isMyVote={myVote?.playerId === p.id}
+                hasVoted={!!myVote}
+                onVote={() => handleVote(p.id)}
+              />
             ))}
           </div>
         </div>
+        {doublesSorted.length > 0 && (
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Doubles</span>
+            <div className="flex flex-col gap-1.5">
+              {doublesSorted.map(p => (
+                <LineupRow
+                  key={p.id}
+                  player={p}
+                  canVote={canVote}
+                  isMyVote={myVote?.playerId === p.id}
+                  hasVoted={!!myVote}
+                  onVote={() => handleVote(p.id)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+      {canVote && (
+        myVote ? (
+          <p className="text-[10px] text-slate-400 font-bold">
+            {myVote.playerId === MVP_SKIP_ID ? 'You skipped the MVP vote for this match.' : 'Thanks for voting!'}
+          </p>
+        ) : (
+          <button onClick={() => handleVote(MVP_SKIP_ID)} className="text-[10px] text-slate-400 hover:text-slate-600 font-bold self-start transition-colors">
+            Skip — I wasn't there
+          </button>
+        )
       )}
     </div>
   );
@@ -301,15 +363,19 @@ const MatchCard: React.FC<{
   league: string;
   match: Match;
   players: Player[];
+  myPlayers: Player[];
   isAdmin: boolean;
   userId?: string;
   onDelete: (id: string) => void;
   onToggleStatus: (match: Match) => void;
   onUpdateScore: (matchId: string, team: number) => void;
   compact?: boolean;
-}> = ({ year, league, match, players, isAdmin, userId, onDelete, onToggleStatus, onUpdateScore, compact }) => {
+}> = ({ year, league, match, players, myPlayers, isAdmin, userId, onDelete, onToggleStatus, onUpdateScore, compact }) => {
   const isWin = (match.teamScore || 0) > (match.opponentScore || 0);
   const statusLabel = match.status === 'Completed' ? (isWin ? 'Win' : 'Loss') : match.status;
+  const statusColorClasses = match.status === 'Completed'
+    ? (isWin ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-500")
+    : "bg-white border border-slate-200 text-slate-500";
   return (
     <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden group hover:border-emerald-100 transition-all h-full">
       <div className={cn(
@@ -327,12 +393,18 @@ const MatchCard: React.FC<{
           </div>
         </div>
         <div className="flex items-center gap-3">
-           <span className={cn(
-             "px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-widest shadow-sm",
-             match.homeAway === 'Home' ? "bg-emerald-600 text-white" : "bg-slate-800 text-white"
-           )}>
-             {match.homeAway}
-           </span>
+           {isAdmin ? (
+             <button
+               onClick={() => onToggleStatus(match)}
+               className={cn("px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-widest shadow-sm transition-all", statusColorClasses)}
+             >
+               {statusLabel}
+             </button>
+           ) : (
+             <span className={cn("px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-widest shadow-sm", statusColorClasses)}>
+               {statusLabel}
+             </span>
+           )}
            {isAdmin && (
              <button onClick={() => onDelete(match.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors">
                 <Trash2 className="w-4 h-4" />
@@ -342,38 +414,23 @@ const MatchCard: React.FC<{
       </div>
 
       <div className="p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-          <div>
-            <h4 className="text-xl font-bold text-slate-800 mb-1 group-hover:text-emerald-700 transition-colors">{match.opponent}</h4>
-            <div className="flex items-center gap-2 text-slate-400 text-xs font-medium">
-              <MapPin className="w-4 h-4 text-emerald-500" />
-              {match.location}
-            </div>
-          </div>
-
-          {isAdmin ? (
-            <button
-              onClick={() => onToggleStatus(match)}
-              className={cn(
-                "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border",
-                match.status === 'Completed'
-                  ? (isWin ? "bg-emerald-100 border-emerald-200 text-emerald-700" : "bg-red-100 border-red-200 text-red-500")
-                  : "bg-white border-slate-200 text-slate-400 hover:border-emerald-500 hover:text-emerald-600"
-              )}
-            >
-              {statusLabel}
-            </button>
-          ) : (
+        <div>
+          <h4 className="text-xl font-bold text-slate-800 mb-1 group-hover:text-emerald-700 transition-colors">{match.opponent}</h4>
+          <div className="flex items-center gap-2 text-slate-400 text-xs font-medium">
+            <MapPin className="w-4 h-4 text-emerald-500" />
+            {match.location}
             <span className={cn(
-              "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border font-bold",
-              match.status === 'Completed'
-                ? (isWin ? "bg-emerald-100 border-emerald-100 text-emerald-700" : "bg-red-100 border-red-100 text-red-500")
-                : "bg-slate-50 border-slate-200 text-slate-400"
+              "px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider",
+              match.homeAway === 'Home' ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
             )}>
-              {statusLabel}
+              {match.homeAway}
             </span>
-          )}
+          </div>
         </div>
+
+        {match.status === 'Scheduled' && (
+          <MyAvailabilityRow year={year} league={league} matchId={match.id} myPlayers={myPlayers} />
+        )}
 
         {match.status === 'Completed' ? (
           <div className="mt-8 flex items-center gap-8 bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
@@ -401,13 +458,7 @@ const MatchCard: React.FC<{
           </div>
         ) : null}
 
-        {match.status === 'Completed' && userId ? (
-          <MvpVoteBox year={year} league={league} match={match} players={players} userId={userId} />
-        ) : null}
-
-        {match.status !== 'Completed' && (
-          <MatchRoster year={year} league={league} match={match} players={players} isAdmin={isAdmin} compact={compact} />
-        )}
+        <MatchRoster year={year} league={league} match={match} players={players} isAdmin={isAdmin} userId={userId} compact={compact} />
       </div>
     </section>
   );
@@ -421,7 +472,10 @@ export const Matches: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [savingError, setSavingError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<MatchStatus>('Scheduled');
-  
+  const [claimSelection, setClaimSelection] = useState<string[]>([]);
+  const [isClaiming, setIsClaiming] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
+
   // Form state
   const [opponent, setOpponent] = useState('');
   const [location, setLocation] = useState('');
@@ -494,6 +548,25 @@ export const Matches: React.FC = () => {
     await tennisService.updateMatch(year, league, matchId, { teamScore: team, opponentScore: 9 - team });
   };
 
+  const myPlayers = players.filter(p => p.uid === user?.uid);
+  const unclaimedPlayers = players.filter(p => !p.uid);
+
+  const handleClaim = async () => {
+    if (claimSelection.length === 0 || !user) return;
+    setIsClaiming(true);
+    setClaimError(null);
+    try {
+      for (const playerId of claimSelection) {
+        await tennisService.claimPlayer(year, league, playerId, user.uid);
+      }
+      setClaimSelection([]);
+    } catch (err: any) {
+      setClaimError(err.message || String(err));
+    } finally {
+      setIsClaiming(false);
+    }
+  };
+
   const upcomingCount = matches.filter(m => m.status === 'Scheduled').length;
   const completedCount = matches.filter(m => m.status === 'Completed').length;
 
@@ -548,6 +621,47 @@ export const Matches: React.FC = () => {
           </button>
         )}
       </div>
+
+      {myPlayers.length === 0 && (
+        <div className="tonal-card p-6 flex flex-col gap-4">
+          <div className="flex items-center gap-2 text-slate-800 font-bold">
+            <UserCheck className="w-5 h-5 text-emerald-600" />
+            Which player(s) are you?
+          </div>
+          {unclaimedPlayers.length === 0 ? (
+            <p className="text-sm text-slate-400">No unclaimed players on this roster right now. Ask an admin to add you or check for a mistaken link.</p>
+          ) : (
+            <>
+              <p className="text-sm text-slate-500">
+                Link your account to one or more players on the roster (e.g. yourself, or a child you manage) so you can mark availability on their behalf.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                {unclaimedPlayers.map(p => (
+                  <label key={p.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100 text-sm cursor-pointer hover:border-emerald-200 transition-all">
+                    <input
+                      type="checkbox"
+                      checked={claimSelection.includes(p.id)}
+                      onChange={e => setClaimSelection(prev => e.target.checked ? [...prev, p.id] : prev.filter(id => id !== p.id))}
+                      className="w-4 h-4 accent-emerald-600"
+                    />
+                    <span className="font-bold text-slate-700">{p.name}</span>
+                  </label>
+                ))}
+              </div>
+              {claimError && <p className="text-xs text-red-500 font-bold">{claimError}</p>}
+              <div className="flex justify-end">
+                <button
+                  onClick={handleClaim}
+                  disabled={claimSelection.length === 0 || isClaiming}
+                  className="bg-slate-900 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg disabled:opacity-50"
+                >
+                  {isClaiming ? 'Linking...' : 'Claim Selected'}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl w-fit">
         <button
@@ -676,6 +790,7 @@ export const Matches: React.FC = () => {
                     league={league}
                     match={match}
                     players={players}
+                    myPlayers={myPlayers}
                     isAdmin={isAdmin}
                     userId={user?.uid}
                     onDelete={handleDelete}

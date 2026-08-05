@@ -9,7 +9,6 @@ import { Layout } from './components/Layout';
 import { Dashboard } from './components/Dashboard';
 import { Players } from './components/Players';
 import { Matches } from './components/Matches';
-import { MyAvailability } from './components/MyAvailability';
 import { GlobalSelectors } from './components/GlobalSelectors';
 
 export default function App() {
@@ -34,12 +33,6 @@ export default function App() {
               <>
                 <GlobalSelectors />
                 <Matches />
-              </>
-            } />
-            <Route path="my-availability" element={
-              <>
-                <GlobalSelectors />
-                <MyAvailability />
               </>
             } />
             <Route path="settings" element={
