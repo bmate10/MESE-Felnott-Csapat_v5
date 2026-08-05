@@ -328,7 +328,7 @@ export const Dashboard: React.FC = () => {
                 <span className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded">Voted — All Done</span>
               ) : (
                 <button
-                  onClick={() => navigate('/matches')}
+                  onClick={() => navigate('/matches?tab=results')}
                   className="text-[10px] bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded hover:bg-amber-200 transition-colors"
                 >
                   Vote for MVP
