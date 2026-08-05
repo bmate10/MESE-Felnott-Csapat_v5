@@ -20,7 +20,8 @@ export interface Match {
   homeAway: HomeAway;
   teamScore?: number;
   opponentScore?: number;
-  selectedPlayerIds?: string[]; // Admin-picked lineup for the day; empty/absent = not decided yet
+  lineupSingles?: string[]; // Up to 6 player ids; court order derives from each player's club rank
+  lineupDoubles?: string[]; // Player ids in the doubles pool for the day (pairing decided onsite)
 }
 
 // Doc id is the playerId; lives at matches/{matchId}/availability/{playerId}

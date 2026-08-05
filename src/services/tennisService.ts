@@ -116,10 +116,10 @@ export const tennisService = {
     }
   },
 
-  setLineup: async (year: string, league: string, matchId: string, playerIds: string[]) => {
+  setLineup: async (year: string, league: string, matchId: string, singles: string[], doubles: string[]) => {
     const path = `years/${year}/leagues/${league}/matches/${matchId}`;
     try {
-      await updateDoc(doc(db, path), { selectedPlayerIds: playerIds });
+      await updateDoc(doc(db, path), { lineupSingles: singles, lineupDoubles: doubles });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, path);
     }

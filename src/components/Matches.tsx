@@ -113,22 +113,32 @@ const AvailabilityList: React.FC<{ entries: AvailabilityEntry[]; players: Player
 const LineupPicker: React.FC<{
   players: Player[];
   entries: AvailabilityEntry[];
-  initialSelection: string[];
-  onConfirm: (playerIds: string[]) => Promise<void>;
+  initialSingles: string[];
+  initialDoubles: string[];
+  onConfirm: (singles: string[], doubles: string[]) => Promise<void>;
   compact?: boolean;
-}> = ({ players, entries, initialSelection, onConfirm, compact }) => {
-  const [selection, setSelection] = useState<string[]>(initialSelection);
+}> = ({ players, entries, initialSingles, initialDoubles, onConfirm, compact }) => {
+  const [singles, setSingles] = useState<string[]>(initialSingles);
+  const [doubles, setDoubles] = useState<string[]>(initialDoubles);
   const [isSaving, setIsSaving] = useState(false);
   const statusOf = (playerId: string) => entries.find(e => e.id === playerId)?.status;
 
-  const toggle = (playerId: string) => {
-    setSelection(prev => prev.includes(playerId) ? prev.filter(id => id !== playerId) : [...prev, playerId]);
+  const toggleSingles = (playerId: string) => {
+    setSingles(prev => {
+      if (prev.includes(playerId)) return prev.filter(id => id !== playerId);
+      if (prev.length >= 6) return prev;
+      return [...prev, playerId];
+    });
+  };
+
+  const toggleDoubles = (playerId: string) => {
+    setDoubles(prev => prev.includes(playerId) ? prev.filter(id => id !== playerId) : [...prev, playerId]);
   };
 
   const handleConfirm = async () => {
     setIsSaving(true);
     try {
-      await onConfirm(selection);
+      await onConfirm(singles, doubles);
     } finally {
       setIsSaving(false);
     }
@@ -138,31 +148,59 @@ const LineupPicker: React.FC<{
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
         <span>Pick Today's Lineup</span>
-        <span>{selection.length} Selected</span>
+        <span>Singles {singles.length}/6 &middot; Doubles {doubles.length}</span>
       </div>
-      <div className={cn("grid gap-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar", compact ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2")}>
+      <div className={cn("grid gap-2 max-h-72 overflow-y-auto pr-2 custom-scrollbar", compact ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2")}>
         {players.map(player => {
           const status = statusOf(player.id);
+          const isSingles = singles.includes(player.id);
+          const isDoubles = doubles.includes(player.id);
+          const singlesDisabled = !isSingles && singles.length >= 6;
           return (
-            <label key={player.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs cursor-pointer hover:border-emerald-200 transition-all">
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  checked={selection.includes(player.id)}
-                  onChange={() => toggle(player.id)}
-                  className="w-4 h-4 accent-emerald-600"
-                />
-                <span className="font-bold text-slate-700 truncate max-w-[110px]">{player.name}</span>
+            <div key={player.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="font-bold text-slate-700 truncate max-w-[90px]">{player.name}</span>
+                {status && (
+                  <span className={cn(
+                    "px-1.5 py-0.5 rounded text-[8px] font-black uppercase flex-shrink-0",
+                    status === 'Yes' ? "bg-emerald-100 text-emerald-700" : status === 'If Needed' ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-400"
+                  )}>
+                    {status === 'If Needed' ? 'Need' : status}
+                  </span>
+                )}
               </div>
-              {status && (
-                <span className={cn(
-                  "px-2 py-0.5 rounded text-[9px] font-black uppercase",
-                  status === 'Yes' ? "bg-emerald-100 text-emerald-700" : status === 'If Needed' ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-400"
-                )}>
-                  {status === 'If Needed' ? 'Need' : status}
-                </span>
-              )}
-            </label>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => toggleSingles(player.id)}
+                  disabled={singlesDisabled}
+                  title="Singles"
+                  className={cn(
+                    "w-7 h-7 rounded-lg text-[10px] font-black transition-all",
+                    isSingles
+                      ? "bg-emerald-600 text-white"
+                      : singlesDisabled
+                        ? "bg-slate-100 text-slate-300 cursor-not-allowed"
+                        : "bg-white border border-slate-200 text-slate-400 hover:border-emerald-400 hover:text-emerald-600"
+                  )}
+                >
+                  S
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggleDoubles(player.id)}
+                  title="Doubles"
+                  className={cn(
+                    "w-7 h-7 rounded-lg text-[10px] font-black transition-all",
+                    isDoubles
+                      ? "bg-sky-600 text-white"
+                      : "bg-white border border-slate-200 text-slate-400 hover:border-sky-400 hover:text-sky-600"
+                  )}
+                >
+                  D
+                </button>
+              </div>
+            </div>
           );
         })}
       </div>
@@ -187,12 +225,13 @@ const MatchRoster: React.FC<{ year: string; league: string; match: Match; player
     return tennisService.subscribeAvailability(year, league, match.id, setEntries);
   }, [year, league, match.id]);
 
-  const selectedPlayerIds = match.selectedPlayerIds || [];
-  const hasLineup = selectedPlayerIds.length > 0;
-  const nameOf = (playerId: string) => players.find(p => p.id === playerId)?.name || 'Unknown';
+  const lineupSingles = match.lineupSingles || [];
+  const lineupDoubles = match.lineupDoubles || [];
+  const hasLineup = lineupSingles.length > 0 || lineupDoubles.length > 0;
+  const playerById = (id: string) => players.find(p => p.id === id);
 
-  const handleConfirm = async (playerIds: string[]) => {
-    await tennisService.setLineup(year, league, match.id, playerIds);
+  const handleConfirm = async (singles: string[], doubles: string[]) => {
+    await tennisService.setLineup(year, league, match.id, singles, doubles);
     setViewAvailability(false);
   };
 
@@ -200,7 +239,7 @@ const MatchRoster: React.FC<{ year: string; league: string; match: Match; player
     return (
       <div className="mt-8 flex flex-col gap-4">
         {isAdmin ? (
-          <LineupPicker players={players} entries={entries} initialSelection={selectedPlayerIds} onConfirm={handleConfirm} compact={compact} />
+          <LineupPicker players={players} entries={entries} initialSingles={lineupSingles} initialDoubles={lineupDoubles} onConfirm={handleConfirm} compact={compact} />
         ) : (
           <AvailabilityList entries={entries} players={players} />
         )}
@@ -213,17 +252,46 @@ const MatchRoster: React.FC<{ year: string; league: string; match: Match; player
     );
   }
 
+  const singlesSorted = lineupSingles
+    .map(playerById)
+    .filter((p): p is Player => !!p)
+    .sort((a, b) => a.rank - b.rank);
+
+  const doublesSorted = lineupDoubles
+    .map(playerById)
+    .filter((p): p is Player => !!p)
+    .sort((a, b) => a.rank - b.rank);
+
   return (
-    <div className="mt-8 flex flex-col gap-3">
+    <div className="mt-8 flex flex-col gap-4">
       <div className="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
         <span>Playing Today</span>
         <button onClick={() => setViewAvailability(true)} className="text-emerald-600 hover:underline normal-case font-bold">Availability</button>
       </div>
-      <div className="flex flex-wrap gap-2">
-        {selectedPlayerIds.map(id => (
-          <span key={id} className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-emerald-100 text-emerald-700">{nameOf(id)}</span>
-        ))}
+      <div className="flex flex-col gap-1.5">
+        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Singles</span>
+        <div className="flex flex-wrap gap-2">
+          {singlesSorted.length === 0 && <span className="text-xs text-slate-400 italic">None selected</span>}
+          {singlesSorted.map((p, i) => (
+            <span key={p.id} className="flex items-center gap-1.5 pl-1.5 pr-3 py-1 rounded-lg text-[10px] font-bold bg-emerald-100 text-emerald-700">
+              <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[9px] font-black flex-shrink-0">{i + 1}</span>
+              {p.name} <span className="text-emerald-500">#{p.rank}</span>
+            </span>
+          ))}
+        </div>
       </div>
+      {doublesSorted.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Doubles</span>
+          <div className="flex flex-wrap gap-2">
+            {doublesSorted.map(p => (
+              <span key={p.id} className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-sky-100 text-sky-700">
+                {p.name} <span className="text-sky-500">#{p.rank}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -240,6 +308,8 @@ const MatchCard: React.FC<{
   onUpdateScore: (matchId: string, team: number) => void;
   compact?: boolean;
 }> = ({ year, league, match, players, isAdmin, userId, onDelete, onToggleStatus, onUpdateScore, compact }) => {
+  const isWin = (match.teamScore || 0) > (match.opponentScore || 0);
+  const statusLabel = match.status === 'Completed' ? (isWin ? 'Win' : 'Loss') : match.status;
   return (
     <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden group hover:border-emerald-100 transition-all h-full">
       <div className={cn(
@@ -287,20 +357,20 @@ const MatchCard: React.FC<{
               className={cn(
                 "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border",
                 match.status === 'Completed'
-                  ? "bg-emerald-100 border-emerald-200 text-emerald-700"
+                  ? (isWin ? "bg-emerald-100 border-emerald-200 text-emerald-700" : "bg-red-100 border-red-200 text-red-500")
                   : "bg-white border-slate-200 text-slate-400 hover:border-emerald-500 hover:text-emerald-600"
               )}
             >
-              {match.status}
+              {statusLabel}
             </button>
           ) : (
             <span className={cn(
               "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border font-bold",
               match.status === 'Completed'
-                ? "bg-emerald-100/30 border-emerald-100 text-emerald-750"
+                ? (isWin ? "bg-emerald-100 border-emerald-100 text-emerald-700" : "bg-red-100 border-red-100 text-red-500")
                 : "bg-slate-50 border-slate-200 text-slate-400"
             )}>
-              {match.status}
+              {statusLabel}
             </span>
           )}
         </div>
@@ -350,6 +420,7 @@ export const Matches: React.FC = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [savingError, setSavingError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<MatchStatus>('Scheduled');
   
   // Form state
   const [opponent, setOpponent] = useState('');
@@ -423,11 +494,15 @@ export const Matches: React.FC = () => {
     await tennisService.updateMatch(year, league, matchId, { teamScore: team, opponentScore: 9 - team });
   };
 
-  const sortedMatches = [...matches].sort((a, b) => {
-    if (a.status !== b.status) return a.status === 'Scheduled' ? -1 : 1;
-    const diff = a.date.toMillis() - b.date.toMillis();
-    return a.status === 'Scheduled' ? diff : -diff;
-  });
+  const upcomingCount = matches.filter(m => m.status === 'Scheduled').length;
+  const completedCount = matches.filter(m => m.status === 'Completed').length;
+
+  const sortedMatches = matches
+    .filter(m => m.status === statusFilter)
+    .sort((a, b) => {
+      const diff = a.date.toMillis() - b.date.toMillis();
+      return statusFilter === 'Scheduled' ? diff : -diff;
+    });
 
   // Group into weekends: an ISO week always contains both days of a calendar
   // weekend, so this groups Sat+Sun together while still handling a
@@ -435,7 +510,7 @@ export const Matches: React.FC = () => {
   const weekendGroups: { key: string; matches: Match[] }[] = [];
   sortedMatches.forEach(match => {
     const d = match.date.toDate();
-    const key = `${getISOWeekYear(d)}-${getISOWeek(d)}-${match.status}`;
+    const key = `${getISOWeekYear(d)}-${getISOWeek(d)}`;
     const last = weekendGroups[weekendGroups.length - 1];
     if (last && last.key === key) {
       last.matches.push(match);
@@ -464,7 +539,7 @@ export const Matches: React.FC = () => {
           <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Upcoming & Past Events</p>
         </div>
         {isAdmin && (
-          <button 
+          <button
             onClick={() => setIsAdding(true)}
             className="bg-emerald-600 text-white px-4 py-2 rounded-xl flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all font-bold text-sm shadow-lg shadow-emerald-600/20"
           >
@@ -472,6 +547,27 @@ export const Matches: React.FC = () => {
             <span>New Match</span>
           </button>
         )}
+      </div>
+
+      <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl w-fit">
+        <button
+          onClick={() => setStatusFilter('Scheduled')}
+          className={cn(
+            "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
+            statusFilter === 'Scheduled' ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+          )}
+        >
+          Upcoming &middot; {upcomingCount}
+        </button>
+        <button
+          onClick={() => setStatusFilter('Completed')}
+          className={cn(
+            "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
+            statusFilter === 'Completed' ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+          )}
+        >
+          Results &middot; {completedCount}
+        </button>
       </div>
 
       {isAdding && (
@@ -561,6 +657,11 @@ export const Matches: React.FC = () => {
       )}
 
       <div className="flex flex-col gap-8">
+        {weekendGroups.length === 0 && (
+          <div className="p-12 text-center text-slate-400 italic bg-white rounded-2xl border border-slate-200">
+            {statusFilter === 'Scheduled' ? 'No upcoming matches scheduled' : 'No completed matches yet'}
+          </div>
+        )}
         {weekendGroups.map(group => (
           <div key={group.key} className="flex flex-col gap-4">
             <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
