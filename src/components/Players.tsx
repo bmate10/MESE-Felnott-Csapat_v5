@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, User, Trash2, Edit2, ShieldAlert, Link2Off, Link2, ChevronDown, Trophy } from 'lucide-react';
+import { Plus, User, Trash2, Edit2, ShieldAlert, Link2Off, Link2, ChevronDown, Trophy, Check, X } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { tennisService } from '../services/tennisService';
 import { Player, Match, MvpVote, MVP_SKIP_ID } from '../types';
@@ -17,6 +17,11 @@ export const Players: React.FC = () => {
   const [newRank, setNewRank] = useState('1');
   const [isSaving, setIsSaving] = useState(false);
   const [savingError, setSavingError] = useState<string | null>(null);
+  const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editRank, setEditRank] = useState('1');
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -110,6 +115,36 @@ export const Players: React.FC = () => {
     }
   };
 
+  const startEdit = (player: Player) => {
+    setEditingPlayerId(player.id);
+    setEditName(player.name);
+    setEditRank(String(player.rank));
+    setEditError(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingPlayerId(null);
+    setEditError(null);
+  };
+
+  const handleSaveEdit = async (id: string) => {
+    if (!editName) return;
+    setIsSavingEdit(true);
+    setEditError(null);
+    try {
+      await tennisService.updatePlayer(year, league, id, {
+        name: editName,
+        rank: parseInt(editRank)
+      });
+      setEditingPlayerId(null);
+    } catch (err: any) {
+      console.error('Failed to update player:', err);
+      setEditError(err.message || String(err));
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
   return (
     <div className="p-6 flex flex-col gap-6 pb-32 bg-slate-50">
       <div className="flex items-center justify-between">
@@ -196,8 +231,44 @@ export const Players: React.FC = () => {
         {players.map((player) => {
           const isExpanded = expandedPlayerId === player.id;
           const stats = isExpanded ? statsFor(player.id) : null;
+          const isEditing = editingPlayerId === player.id;
           return (
             <div key={player.id} className="tonal-card overflow-hidden group hover:border-emerald-100 transition-all">
+              {isEditing ? (
+                <div className="p-4 flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <input
+                      value={editName}
+                      onChange={e => setEditName(e.target.value)}
+                      placeholder="Full name"
+                      className="flex-1 bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-sm font-bold focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all"
+                    />
+                    <input
+                      type="number"
+                      value={editRank}
+                      onChange={e => setEditRank(e.target.value)}
+                      className="w-20 bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-sm font-bold text-center focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all"
+                    />
+                    <button
+                      onClick={() => handleSaveEdit(player.id)}
+                      disabled={isSavingEdit || !editName}
+                      title="Save"
+                      className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-all disabled:opacity-50 flex-shrink-0"
+                    >
+                      <Check className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={cancelEdit}
+                      disabled={isSavingEdit}
+                      title="Cancel"
+                      className="p-2.5 rounded-xl bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all disabled:opacity-50 flex-shrink-0"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  {editError && <p className="text-xs text-red-500 font-bold">{editError}</p>}
+                </div>
+              ) : (
               <div
                 onClick={() => setExpandedPlayerId(isExpanded ? null : player.id)}
                 className="p-4 flex items-center gap-6 cursor-pointer"
@@ -232,7 +303,11 @@ export const Players: React.FC = () => {
                         <Link2Off className="w-4 h-4" />
                       </button>
                     )}
-                    <button onClick={(e) => e.stopPropagation()} className="p-2.5 rounded-xl bg-slate-50 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); startEdit(player); }}
+                      title="Edit player"
+                      className="p-2.5 rounded-xl bg-slate-50 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
+                    >
                       <Edit2 className="w-4 h-4" />
                     </button>
                     <button
@@ -244,6 +319,7 @@ export const Players: React.FC = () => {
                   </div>
                 )}
               </div>
+              )}
               {isExpanded && stats && (
                 <div className="px-4 pb-4 pt-1 border-t border-slate-100 flex flex-col gap-4">
                   <div className="grid grid-cols-3 gap-3 pt-3">

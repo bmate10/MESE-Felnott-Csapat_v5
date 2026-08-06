@@ -45,7 +45,7 @@ const MyAvailabilityRow: React.FC<{ year: string; league: string; matchId: strin
                       : "bg-white border border-slate-200 text-slate-400 hover:border-emerald-200 hover:text-emerald-500"
                   )}
                 >
-                  {s === 'If Needed' ? 'Need' : s}
+                  {s === 'If Needed' ? 'Sub' : s}
                 </button>
               ))}
             </div>
@@ -152,7 +152,7 @@ const LineupPicker: React.FC<{
                     : status === 'No' ? "bg-slate-100 text-slate-400"
                     : "bg-red-50 text-red-300 border border-dashed border-red-200"
                 )}>
-                  {status === 'If Needed' ? 'Need' : status || 'No Response'}
+                  {status === 'If Needed' ? 'Sub' : status || 'No Response'}
                 </span>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -348,7 +348,7 @@ const MatchRoster: React.FC<{ year: string; league: string; match: Match; player
   return (
     <div className="mt-8 flex flex-col gap-3">
       <div className="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
-        <span>Playing Today</span>
+        <span>{match.status === 'Completed' ? 'Lineup' : 'Playing Today'}</span>
         <div className="flex items-center gap-3">
           <button onClick={copyLineup} className="flex items-center gap-1 text-slate-400 hover:text-emerald-600 normal-case font-bold transition-colors" title="Copy lineup">
             {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
@@ -493,7 +493,8 @@ const MatchCard: React.FC<{
                 <select
                   value={match.teamScore ?? 0}
                   onChange={e => onUpdateScore(match.id, parseInt(e.target.value))}
-                  className="w-16 h-16 text-4xl font-bold bg-white rounded-xl text-center border border-slate-150 shadow-sm focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
+                  className="w-16 h-16 text-4xl font-bold bg-white rounded-xl text-center border border-slate-150 shadow-sm focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer p-0"
+                  style={{ textAlignLast: 'center', textAlign: 'center', lineHeight: '4rem' }}
                 >
                   {Array.from({ length: 10 }, (_, i) => i).map(n => (
                     <option key={n} value={n}>{n}</option>

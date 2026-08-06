@@ -42,7 +42,7 @@ export const Dashboard: React.FC = () => {
   const losses = completedMatches.length - wins;
   const winRate = completedMatches.length > 0 ? Math.round((wins / completedMatches.length) * 100) : 0;
 
-  const upcomingMatches = matches.filter(m => m.status === 'Scheduled').slice(0, 1);
+  const upcomingMatches = matches.filter(m => m.status === 'Scheduled').slice(0, 2);
   const recentResults = completedMatches.sort((a, b) => b.date.toMillis() - a.date.toMillis()).slice(0, 3);
 
   // MVP vote aggregation
@@ -243,32 +243,64 @@ export const Dashboard: React.FC = () => {
         <div className="lg:col-span-8 space-y-6">
           <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-              <h2 className="font-bold text-slate-800">Next Match</h2>
+              <h2 className="font-bold text-slate-800">Upcoming</h2>
               <button onClick={() => navigate('/matches')} className="text-xs text-emerald-600 font-bold hover:underline">Full Schedule</button>
             </div>
-            
-            {upcomingMatches.length > 0 ? upcomingMatches.map(match => (
-              <div key={match.id} className="p-0">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center px-6 py-4 hover:bg-slate-50 transition-colors">
-                  <div className="w-14 h-14 bg-slate-100 rounded-xl flex flex-col items-center justify-center mb-4 sm:mb-0 sm:mr-4 text-slate-500 flex-shrink-0">
-                    <span className="text-[10px] uppercase font-bold">{format(match.date.toDate(), 'MMM')}</span>
-                    <span className="text-lg font-bold leading-none">{format(match.date.toDate(), 'd')}</span>
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-slate-800 text-lg">{match.opponent}</p>
-                    <p className="text-xs text-slate-500 font-medium">
-                      {match.homeAway} • {format(match.date.toDate(), 'EEEE, h:mm a')}
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-end gap-2 mt-4 sm:mt-0">
-                    <div className="flex items-center gap-2 text-slate-400 text-xs bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
-                      <MapPin className="w-4 h-4" />
-                      <span className="font-medium truncate max-w-[150px]">{match.location}</span>
+
+            {upcomingMatches.length > 0 ? (
+              <div className="divide-y divide-slate-100">
+                {upcomingMatches.map(match => (
+                  <div key={match.id} className="px-6 py-4 hover:bg-slate-50 transition-colors">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center">
+                      <div className="w-14 h-14 bg-slate-100 rounded-xl flex flex-col items-center justify-center mb-4 sm:mb-0 sm:mr-4 text-slate-500 flex-shrink-0">
+                        <span className="text-[10px] uppercase font-bold">{format(match.date.toDate(), 'MMM')}</span>
+                        <span className="text-lg font-bold leading-none">{format(match.date.toDate(), 'd')}</span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-bold text-slate-800 text-lg">{match.opponent}</p>
+                        <p className="text-xs text-slate-500 font-medium">
+                          {match.homeAway} • {format(match.date.toDate(), 'EEEE, h:mm a')}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-2 mt-4 sm:mt-0">
+                        <div className="flex items-center gap-2 text-slate-400 text-xs bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+                          <MapPin className="w-4 h-4" />
+                          <span className="font-medium truncate max-w-[150px]">{match.location}</span>
+                        </div>
+                      </div>
                     </div>
+                    {myPlayers.length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col gap-2">
+                        {myPlayers.map(player => {
+                          const status = myAvailabilityMap[`${player.id}:${match.id}`];
+                          return (
+                            <div key={player.id} className="flex items-center justify-between gap-3">
+                              <span className="text-xs font-bold text-slate-700 truncate">{player.name}</span>
+                              <div className="flex gap-1.5 flex-shrink-0">
+                                {(['Yes', 'No', 'If Needed'] as AvailabilityStatus[]).map(s => (
+                                  <button
+                                    key={s}
+                                    onClick={() => tennisService.setAvailability(year, league, match.id, player.id, s)}
+                                    className={cn(
+                                      "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all",
+                                      status === s
+                                        ? (s === 'Yes' ? "bg-emerald-600 text-white shadow-sm" : s === 'No' ? "bg-slate-800 text-white" : "bg-amber-500 text-white")
+                                        : "bg-white border border-slate-200 text-slate-400 hover:border-emerald-200 hover:text-emerald-500"
+                                    )}
+                                  >
+                                    {s === 'If Needed' ? 'Sub' : s}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                </div>
+                ))}
               </div>
-            )) : (
+            ) : (
               <div className="p-12 text-center text-slate-400 font-medium italic">No upcoming matches scheduled</div>
             )}
           </section>
@@ -283,21 +315,19 @@ export const Dashboard: React.FC = () => {
             <div className="flex flex-col">
               {recentResults.map(match => (
                 <div key={match.id} className="p-6 flex items-center justify-between hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0">
-                  <div className="flex items-center gap-6">
-                    <div className="flex items-center gap-3">
-                      <div className="text-center">
-                        <p className={cn("text-2xl font-bold", (match.teamScore || 0) > (match.opponentScore || 0) ? "text-slate-800" : "text-slate-400")}>{match.teamScore}</p>
-                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-tight">M.E.S.E</p>
-                      </div>
-                      <div className="text-slate-200 font-light text-2xl">:</div>
-                      <div className="text-center">
-                        <p className={cn("text-2xl font-bold", (match.opponentScore || 0) > (match.teamScore || 0) ? "text-slate-800" : "text-slate-400")}>{match.opponentScore}</p>
-                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-tight">{match.opponent.split(' ')[0]}</p>
-                      </div>
+                  <div className="grid grid-cols-[2.5rem_1.25rem_2.5rem] sm:grid-cols-[3rem_1.5rem_3rem_1px_9rem] items-center gap-x-3 sm:gap-x-6">
+                    <div className="text-center">
+                      <p className={cn("text-2xl font-bold", (match.teamScore || 0) > (match.opponentScore || 0) ? "text-slate-800" : "text-slate-400")}>{match.teamScore}</p>
+                      <p className="text-[10px] uppercase font-bold text-slate-400 tracking-tight truncate">M.E.S.E</p>
                     </div>
-                    <div className="hidden sm:block h-10 w-px bg-slate-100"></div>
+                    <div className="text-center text-slate-200 font-light text-2xl">:</div>
+                    <div className="text-center">
+                      <p className={cn("text-2xl font-bold", (match.opponentScore || 0) > (match.teamScore || 0) ? "text-slate-800" : "text-slate-400")}>{match.opponentScore}</p>
+                      <p className="text-[10px] uppercase font-bold text-slate-400 tracking-tight truncate">{match.opponent.split(' ')[0]}</p>
+                    </div>
+                    <div className="hidden sm:block h-10 w-px bg-slate-100 justify-self-center"></div>
                     <div className="hidden sm:block">
-                      <p className="text-xs font-bold text-slate-700">{format(match.date.toDate(), 'MMMM d, yyyy')}</p>
+                      <p className="text-xs font-bold text-slate-700 whitespace-nowrap">{format(match.date.toDate(), 'MMMM d, yyyy')}</p>
                     </div>
                   </div>
 
@@ -308,7 +338,7 @@ export const Dashboard: React.FC = () => {
                     )}>
                       {(match.teamScore || 0) > (match.opponentScore || 0) ? 'WIN' : 'LOSS'}
                     </span>
-                    <button className="text-[10px] text-slate-400 hover:text-emerald-600 font-bold transition-colors">DETAILS</button>
+                    <button onClick={() => navigate('/matches?tab=results')} className="text-[10px] text-slate-400 hover:text-emerald-600 font-bold transition-colors">DETAILS</button>
                   </div>
                 </div>
               ))}
