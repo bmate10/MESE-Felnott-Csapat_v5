@@ -227,7 +227,7 @@ const LineupRow: React.FC<{
       )}
       {canVote && !hasVoted && (
         <span className="px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider flex-shrink-0 transition-colors bg-emerald-50 text-emerald-600 border border-emerald-200 group-hover:bg-emerald-600 group-hover:text-white group-hover:border-emerald-600">
-          Vote MVP
+          MVP
         </span>
       )}
     </>
