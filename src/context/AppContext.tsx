@@ -7,6 +7,7 @@ import {
   User
 } from 'firebase/auth';
 import { auth } from '../lib/firebase';
+import { tennisService } from '../services/tennisService';
 
 type League = 'BP 3' | 'BP 2' | 'BP 1' | 'OB 3' | 'OB 2' | 'OB 1';
 const LEAGUES: League[] = ['BP 3', 'BP 2', 'BP 1', 'OB 3', 'OB 2', 'OB 1'];
@@ -19,6 +20,7 @@ interface AppContextType {
   user: User | null;
   authLoading: boolean;
   isAdmin: boolean;
+  isOwner: boolean;
   login: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -43,6 +45,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [grantedAdmin, setGrantedAdmin] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (usr) => {
@@ -51,6 +54,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setGrantedAdmin(false);
+      return;
+    }
+    return tennisService.subscribeIsAdmin(user.uid, setGrantedAdmin);
+  }, [user]);
 
   const login = async () => {
     try {
@@ -70,17 +81,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const isAdmin = !!(user && user.email === 'bmate10@gmail.com');
+  const isOwner = !!(user && user.email === 'bmate10@gmail.com');
+  const isAdmin = isOwner || grantedAdmin;
 
   return (
-    <AppContext.Provider value={{ 
-      year, 
-      setYear, 
-      league, 
+    <AppContext.Provider value={{
+      year,
+      setYear,
+      league,
       setLeague,
       user,
       authLoading,
       isAdmin,
+      isOwner,
       login,
       logout
     }}>

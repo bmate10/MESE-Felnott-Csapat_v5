@@ -53,8 +53,10 @@ service cloud.firestore {
     }
 
     match /admins/{uid} {
-      allow read: if isSignedIn() && request.auth.uid == uid;
-      allow write: if false; // Only manageable via console or bootstrapping email
+      // No `list` rule: admin status is always checked per-uid (get/exists),
+      // never by listing the collection. Write is owner-only.
+      allow get: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+      allow write: if isSignedIn() && (request.auth.uid == 'lMx7g98t0xVPQbtsBhOFLBB2w4h1' || request.auth.token.email == 'bmate10@gmail.com');
     }
 
     match /years/{yearId} {

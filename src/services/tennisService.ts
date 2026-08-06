@@ -11,6 +11,7 @@ import {
   onSnapshot,
   setDoc,
   deleteField,
+  serverTimestamp,
   Timestamp
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
@@ -179,6 +180,52 @@ export const tennisService = {
 
   retractMvpVote: async (year: string, league: string, matchId: string, voterId: string) => {
     const path = `years/${year}/leagues/${league}/matches/${matchId}/mvpVotes/${voterId}`;
+    try {
+      await deleteDoc(doc(db, path));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, path);
+    }
+  },
+
+  // Admins
+  // Firestore `list` queries on this database's root-level collections are
+  // consistently denied regardless of the security rule, so admin status is
+  // checked per-uid via `get` (exists()) instead of listing the collection.
+  subscribeAdminStatuses: (uids: string[], callback: (adminUids: Set<string>) => void) => {
+    if (uids.length === 0) {
+      callback(new Set());
+      return () => {};
+    }
+    const statuses = new Map<string, boolean>();
+    const emit = () => callback(new Set([...statuses].filter(([, isAdmin]) => isAdmin).map(([uid]) => uid)));
+    const unsubs = uids.map(uid => {
+      const path = `admins/${uid}`;
+      return onSnapshot(doc(db, path), (snap) => {
+        statuses.set(uid, snap.exists());
+        emit();
+      }, (error) => handleFirestoreError(error, OperationType.GET, path));
+    });
+    return () => unsubs.forEach(unsub => unsub());
+  },
+
+  subscribeIsAdmin: (uid: string, callback: (isAdmin: boolean) => void) => {
+    const path = `admins/${uid}`;
+    return onSnapshot(doc(db, path), (snap) => {
+      callback(snap.exists());
+    }, (error) => handleFirestoreError(error, OperationType.GET, path));
+  },
+
+  grantAdmin: async (uid: string) => {
+    const path = `admins/${uid}`;
+    try {
+      await setDoc(doc(db, path), { grantedAt: serverTimestamp() });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, path);
+    }
+  },
+
+  revokeAdmin: async (uid: string) => {
+    const path = `admins/${uid}`;
     try {
       await deleteDoc(doc(db, path));
     } catch (error) {
