@@ -175,5 +175,14 @@ export const tennisService = {
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, path);
     }
+  },
+
+  retractMvpVote: async (year: string, league: string, matchId: string, voterId: string) => {
+    const path = `years/${year}/leagues/${league}/matches/${matchId}/mvpVotes/${voterId}`;
+    try {
+      await deleteDoc(doc(db, path));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, path);
+    }
   }
 };

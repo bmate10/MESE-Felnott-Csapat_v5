@@ -9,6 +9,7 @@ import {
 import { auth } from '../lib/firebase';
 
 type League = 'BP 3' | 'BP 2' | 'BP 1' | 'OB 3' | 'OB 2' | 'OB 1';
+const LEAGUES: League[] = ['BP 3', 'BP 2', 'BP 1', 'OB 3', 'OB 2', 'OB 1'];
 
 interface AppContextType {
   year: string;
@@ -25,8 +26,21 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [year, setYear] = useState(() => String(new Date().getFullYear()));
-  const [league, setLeague] = useState<League>('BP 1');
+  const [year, setYearState] = useState(() => localStorage.getItem('mese.year') || String(new Date().getFullYear()));
+  const [league, setLeagueState] = useState<League>(() => {
+    const stored = localStorage.getItem('mese.league');
+    return (stored && LEAGUES.includes(stored as League)) ? stored as League : 'BP 1';
+  });
+
+  const setYear = (y: string) => {
+    setYearState(y);
+    localStorage.setItem('mese.year', y);
+  };
+
+  const setLeague = (l: League) => {
+    setLeagueState(l);
+    localStorage.setItem('mese.league', l);
+  };
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 

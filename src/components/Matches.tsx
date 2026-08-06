@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Calendar, MapPin, Trophy, Trash2, UserCheck } from 'lucide-react';
+import { Plus, Calendar, MapPin, Trophy, Trash2, UserCheck, Copy, Check } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { tennisService } from '../services/tennisService';
 import { Match, Player, Season, HomeAway, MatchStatus, MvpVote, MVP_SKIP_ID, AvailabilityEntry, AvailabilityStatus } from '../types';
@@ -56,11 +56,12 @@ const MyAvailabilityRow: React.FC<{ year: string; league: string; matchId: strin
   );
 };
 
-const AvailabilityList: React.FC<{ entries: AvailabilityEntry[]; players: Player[] }> = ({ entries, players }) => {
+const AvailabilityList: React.FC<{ entries: AvailabilityEntry[]; players: Player[]; isAdmin?: boolean }> = ({ entries, players, isAdmin }) => {
   const nameOf = (playerId: string) => players.find(p => p.id === playerId)?.name || 'Unknown';
   const available = entries.filter(e => e.status === 'Yes');
   const reserves = entries.filter(e => e.status === 'If Needed');
   const unavailable = entries.filter(e => e.status === 'No');
+  const noResponse = isAdmin ? players.filter(p => !entries.some(e => e.id === p.id)) : [];
 
   return (
     <div className="flex flex-col gap-3">
@@ -69,9 +70,10 @@ const AvailabilityList: React.FC<{ entries: AvailabilityEntry[]; players: Player
         <div className="flex gap-4">
           <span className="text-emerald-600">Available: {available.length}</span>
           <span className="text-slate-500">Reserves: {reserves.length}</span>
+          {isAdmin && <span className="text-red-400">No Response: {noResponse.length}</span>}
         </div>
       </div>
-      {entries.length === 0 ? (
+      {entries.length === 0 && noResponse.length === 0 ? (
         <p className="text-xs text-slate-400 italic py-2">No responses yet.</p>
       ) : (
         <div className="flex flex-wrap gap-2">
@@ -83,6 +85,9 @@ const AvailabilityList: React.FC<{ entries: AvailabilityEntry[]; players: Player
           ))}
           {unavailable.map(e => (
             <span key={e.id} className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-slate-100 text-slate-500">{nameOf(e.id)}</span>
+          ))}
+          {noResponse.map(p => (
+            <span key={p.id} className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-red-50 text-red-400 border border-dashed border-red-200">{p.name}</span>
           ))}
         </div>
       )}
@@ -140,14 +145,15 @@ const LineupPicker: React.FC<{
             <div key={player.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="font-bold text-slate-700 truncate max-w-[90px]">{player.name}</span>
-                {status && (
-                  <span className={cn(
-                    "px-1.5 py-0.5 rounded text-[8px] font-black uppercase flex-shrink-0",
-                    status === 'Yes' ? "bg-emerald-100 text-emerald-700" : status === 'If Needed' ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-400"
-                  )}>
-                    {status === 'If Needed' ? 'Need' : status}
-                  </span>
-                )}
+                <span className={cn(
+                  "px-1.5 py-0.5 rounded text-[8px] font-black uppercase flex-shrink-0",
+                  status === 'Yes' ? "bg-emerald-100 text-emerald-700"
+                    : status === 'If Needed' ? "bg-amber-100 text-amber-700"
+                    : status === 'No' ? "bg-slate-100 text-slate-400"
+                    : "bg-red-50 text-red-300 border border-dashed border-red-200"
+                )}>
+                  {status === 'If Needed' ? 'Need' : status || 'No Response'}
+                </span>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 <button
@@ -249,6 +255,7 @@ const MatchRoster: React.FC<{ year: string; league: string; match: Match; player
   const [entries, setEntries] = useState<AvailabilityEntry[]>([]);
   const [viewAvailability, setViewAvailability] = useState(false);
   const [mvpVotes, setMvpVotes] = useState<MvpVote[]>([]);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     return tennisService.subscribeAvailability(year, league, match.id, setEntries);
@@ -275,6 +282,11 @@ const MatchRoster: React.FC<{ year: string; league: string; match: Match; player
   const handleVote = async (playerId: string) => {
     if (!userId || myVote) return;
     await tennisService.voteMvp(year, league, match.id, playerId, userId);
+  };
+
+  const handleRetractVote = async () => {
+    if (!userId) return;
+    await tennisService.retractMvpVote(year, league, match.id, userId);
   };
 
   if (!hasLineup || viewAvailability) {
@@ -304,13 +316,48 @@ const MatchRoster: React.FC<{ year: string; league: string; match: Match; player
     .filter((p): p is Player => !!p)
     .sort((a, b) => a.rank - b.rank);
 
+  const copyLineup = async () => {
+    const lines = [
+      `${match.opponent} — ${format(match.date.toDate(), 'EEEE, MMM d, h:mm a')} (${match.homeAway})`,
+      match.location,
+      '',
+      'Singles:',
+      ...singlesSorted.map((p, i) => `${i + 1}. ${p.name} (#${p.rank})`),
+    ];
+    if (doublesSorted.length > 0) {
+      lines.push('', 'Doubles:', ...doublesSorted.map(p => `- ${p.name} (#${p.rank})`));
+    }
+    const text = lines.join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (e) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <div className="mt-8 flex flex-col gap-3">
       <div className="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
         <span>Playing Today</span>
-        <button onClick={() => setViewAvailability(true)} className="text-emerald-600 hover:underline normal-case font-bold">Availability</button>
+        <div className="flex items-center gap-3">
+          <button onClick={copyLineup} className="flex items-center gap-1 text-slate-400 hover:text-emerald-600 normal-case font-bold transition-colors" title="Copy lineup">
+            {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+            {copied ? 'Copied' : 'Copy'}
+          </button>
+          <button onClick={() => setViewAvailability(true)} className="text-emerald-600 hover:underline normal-case font-bold">Availability</button>
+        </div>
       </div>
-      <div className={cn("grid gap-4", doublesSorted.length > 0 ? "grid-cols-2" : "grid-cols-1")}>
+      <div className={cn("grid gap-4", doublesSorted.length > 0 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1")}>
         <div className="flex flex-col gap-1.5">
           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Singles</span>
           <div className="flex flex-col gap-1.5">
@@ -348,9 +395,12 @@ const MatchRoster: React.FC<{ year: string; league: string; match: Match; player
       </div>
       {canVote && (
         myVote ? (
-          <p className="text-[10px] text-slate-400 font-bold">
-            {myVote.playerId === MVP_SKIP_ID ? 'You skipped the MVP vote for this match.' : 'Thanks for voting!'}
-          </p>
+          <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold">
+            <span>{myVote.playerId === MVP_SKIP_ID ? 'You skipped the MVP vote for this match.' : 'Thanks for voting!'}</span>
+            <button onClick={handleRetractVote} className="text-slate-400 hover:text-red-500 underline transition-colors">
+              Change vote
+            </button>
+          </div>
         ) : (
           <button onClick={() => handleVote(MVP_SKIP_ID)} className="text-[10px] text-slate-400 hover:text-slate-600 font-bold self-start transition-colors">
             Skip — I wasn't there
