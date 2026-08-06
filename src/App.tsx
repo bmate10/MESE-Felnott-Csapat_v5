@@ -9,6 +9,7 @@ import { Layout } from './components/Layout';
 import { Dashboard } from './components/Dashboard';
 import { Players } from './components/Players';
 import { Matches } from './components/Matches';
+import { Settings } from './components/Settings';
 import { GlobalSelectors } from './components/GlobalSelectors';
 
 export default function App() {
@@ -36,10 +37,10 @@ export default function App() {
               </>
             } />
             <Route path="settings" element={
-              <div className="p-8 text-center text-on-surface-variant">
-                <h2 className="text-xl font-bold text-primary mb-4">Settings</h2>
-                <p>Team configuration and export options coming soon.</p>
-              </div>
+              <>
+                <GlobalSelectors />
+                <Settings />
+              </>
             } />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
