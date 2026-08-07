@@ -293,7 +293,7 @@ export const Players: React.FC = () => {
                 </div>
                 <ChevronDown className={cn("w-4 h-4 text-slate-300 flex-shrink-0 transition-transform", isExpanded && "rotate-180")} />
                 {isAdmin && (
-                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 flex-shrink-0">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     {player.uid && (
                       <button
                          onClick={(e) => { e.stopPropagation(); handleUnlink(player.id); }}

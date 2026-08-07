@@ -1,14 +1,36 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { Search, UserCircle, Home, Calendar, Users, Settings, LogOut } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAppContext } from '../context/AppContext';
 import meseLogo from '../assets/mese-logo.jpg';
+import { Toaster } from './Toaster';
 
 export const Layout: React.FC = () => {
   const location = useLocation();
   const { user, authLoading, isAdmin, login, logout } = useAppContext();
-  
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  const handleLogin = async () => {
+    setIsLoggingIn(true);
+    setLoginError(null);
+    try {
+      await login();
+    } catch (err: any) {
+      const code = err?.code || '';
+      setLoginError(
+        code === 'auth/popup-closed-by-user'
+          ? 'Sign-in was cancelled.'
+          : code === 'auth/popup-blocked'
+            ? 'Your browser blocked the sign-in popup. Please allow popups for this site and try again.'
+            : 'Sign-in failed. Please try again.'
+      );
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
   const topTabs = [
     { name: 'Dashboard', path: '/' },
     { name: 'Matches', path: '/matches' },
@@ -51,8 +73,9 @@ export const Layout: React.FC = () => {
           </div>
 
           <button
-            onClick={login}
-            className="w-full flex items-center justify-center gap-3 bg-slate-900 text-white rounded-xl px-5 py-4 font-bold text-sm shadow-lg hover:bg-slate-800 active:scale-95 transition-all cursor-pointer"
+            onClick={handleLogin}
+            disabled={isLoggingIn}
+            className="w-full flex items-center justify-center gap-3 bg-slate-900 text-white rounded-xl px-5 py-4 font-bold text-sm shadow-lg hover:bg-slate-800 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
           >
             <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
               <path
@@ -72,8 +95,11 @@ export const Layout: React.FC = () => {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
               />
             </svg>
-            <span>Bejelentkezés Google Fiókkal</span>
+            <span>{isLoggingIn ? 'Bejelentkezés...' : 'Bejelentkezés Google Fiókkal'}</span>
           </button>
+          {loginError && (
+            <p className="text-xs font-bold text-red-500 bg-red-50 border border-red-100 rounded-xl px-4 py-3">{loginError}</p>
+          )}
         </div>
       </div>
     );
@@ -81,6 +107,7 @@ export const Layout: React.FC = () => {
 
   return (
     <div className="min-h-screen pb-24 bg-slate-50">
+      <Toaster />
       {/* Top Navbar */}
       <header className="bg-white px-6 pt-4 flex flex-col border-b border-slate-200">
         <div className="flex items-center justify-between pb-3">

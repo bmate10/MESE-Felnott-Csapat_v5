@@ -69,7 +69,7 @@ const AvailabilityList: React.FC<{ entries: AvailabilityEntry[]; players: Player
         <span>Rotation Roster Availability</span>
         <div className="flex gap-4">
           <span className="text-emerald-600">Available: {available.length}</span>
-          <span className="text-slate-500">Reserves: {reserves.length}</span>
+          <span className="text-slate-500">Subs: {reserves.length}</span>
           {isAdmin && <span className="text-red-400">No Response: {noResponse.length}</span>}
         </div>
       </div>
@@ -592,6 +592,7 @@ export const Matches: React.FC = () => {
     const newStatus: MatchStatus = match.status === 'Scheduled' ? 'Completed' : 'Scheduled';
     const updates: Partial<Match> = { status: newStatus };
     if (newStatus === 'Completed') {
+      if (!confirm(`Mark the match against ${match.opponent} as completed? You'll be able to set the score next.`)) return;
       updates.teamScore = 0;
       updates.opponentScore = 9;
     }

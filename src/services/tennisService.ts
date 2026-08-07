@@ -16,6 +16,7 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { OperationType, Player, Match, MvpVote, AvailabilityEntry, AvailabilityStatus } from '../types';
+import { showError, friendlyErrorMessage } from '../lib/toast';
 
 function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
   const errInfo = {
@@ -30,6 +31,7 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
     path
   };
   console.error('Firestore Error: ', JSON.stringify(errInfo));
+  showError(friendlyErrorMessage(error));
   throw new Error(JSON.stringify(errInfo));
 }
 
