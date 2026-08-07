@@ -1,8 +1,9 @@
 import React from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Search, UserCircle, Home, Calendar, Users, Settings, LogOut, Lock } from 'lucide-react';
+import { Search, UserCircle, Home, Calendar, Users, Settings, LogOut } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAppContext } from '../context/AppContext';
+import meseLogo from '../assets/mese-logo.jpg';
 
 export const Layout: React.FC = () => {
   const location = useLocation();
@@ -28,9 +29,7 @@ export const Layout: React.FC = () => {
       <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 flex flex-col items-center justify-center">
         <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-3xl border border-slate-200 shadow-xl text-center">
           <div className="flex flex-col items-center">
-            <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mb-4 border border-emerald-100 shadow-sm animate-pulse">
-              <Lock className="w-8 h-8 text-emerald-600" />
-            </div>
+            <img src={meseLogo} alt="M.E.S.E" className="w-24 h-24 object-contain mb-2" />
             <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">M.E.S.E</h1>
             <p className="text-xs uppercase font-bold text-slate-400 tracking-widest mt-1">Felnőtt Bajnokság Portal</p>
           </div>
@@ -86,9 +85,7 @@ export const Layout: React.FC = () => {
       <header className="bg-white px-6 pt-4 flex flex-col border-b border-slate-200">
         <div className="flex items-center justify-between pb-3">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center">
-              <div className="w-4 h-4 border-2 border-white rounded-full"></div>
-            </div>
+            <img src={meseLogo} alt="M.E.S.E" className="w-10 h-10 object-contain flex-shrink-0" />
             <div>
               <span className="font-bold text-lg tracking-tight text-slate-800 block leading-none">M.E.S.E</span>
               <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">bajnokság</span>
