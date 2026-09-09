@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Calendar, MapPin, Trophy, Trash2, UserCheck, Copy, Check } from 'lucide-react';
+import { Plus, Calendar, MapPin, Trophy, Trash2, UserCheck, Copy, Check, X, Edit2 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { tennisService } from '../services/tennisService';
-import { Match, Player, Season, HomeAway, MatchStatus, MvpVote, MVP_SKIP_ID, AvailabilityEntry, AvailabilityStatus } from '../types';
+import { Match, Player, Season, HomeAway, MatchStatus, MvpVote, MVP_SKIP_ID, AvailabilityEntry, AvailabilityStatus, SetScore, SinglesResult, DoublesResult } from '../types';
 import { format, getISOWeek, getISOWeekYear } from 'date-fns';
 import { cn } from '../lib/utils';
 import { Timestamp } from 'firebase/firestore';
+import { setWinner, matchWinner, needsThirdSet, computeTeamScore } from '../lib/results';
 
 const MyAvailabilityRow: React.FC<{ year: string; league: string; matchId: string; myPlayers: Player[] }> = ({ year, league, matchId, myPlayers }) => {
   const [statusMap, setStatusMap] = useState<Record<string, AvailabilityStatus | undefined>>({});
@@ -210,7 +211,8 @@ const LineupRow: React.FC<{
   isMyVote: boolean;
   hasVoted: boolean;
   onVote: () => void;
-}> = ({ player, slot, canVote, isMyVote, hasVoted, onVote }) => {
+  result?: 'win' | 'loss';
+}> = ({ player, slot, canVote, isMyVote, hasVoted, onVote, result }) => {
   const content = (
     <>
       <span className="flex items-center gap-1.5 min-w-0">
@@ -220,6 +222,14 @@ const LineupRow: React.FC<{
         <span className="font-bold text-slate-700 truncate">{player.name}</span>
         <span className="text-slate-400 text-[10px] flex-shrink-0">#{player.rank}</span>
       </span>
+      {result && (
+        <span className={cn(
+          "text-[9px] font-black uppercase tracking-wider flex-shrink-0",
+          result === 'win' ? "text-emerald-600" : "text-red-500"
+        )}>
+          {result === 'win' ? 'W' : 'L'}
+        </span>
+      )}
       {isMyVote && (
         <span className="flex items-center gap-1 text-[9px] font-black text-emerald-600 uppercase flex-shrink-0">
           <Trophy className="w-3 h-3" /> MVP
@@ -244,16 +254,314 @@ const LineupRow: React.FC<{
   return (
     <div className={cn(
       "flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs border",
-      isMyVote ? "bg-emerald-50 border-emerald-200" : "bg-slate-50 border-slate-100"
+      isMyVote ? "bg-emerald-50 border-emerald-200" : result === 'win' ? "bg-emerald-50/50 border-emerald-100" : result === 'loss' ? "bg-red-50/50 border-red-100" : "bg-slate-50 border-slate-100"
     )}>
       {content}
     </div>
   );
 };
 
+type SetInput = { us: string; them: string };
+
+const toSetInputs = (sets?: SetScore[]): SetInput[] => {
+  if (sets && sets.length >= 2) return sets.map(s => ({ us: String(s.us), them: String(s.them) }));
+  return [{ us: '', them: '' }, { us: '', them: '' }];
+};
+
+const toSetScores = (inputs: SetInput[]): SetScore[] =>
+  inputs.map(s => ({ us: parseInt(s.us) || 0, them: parseInt(s.them) || 0 }));
+
+const SetScoreEditor: React.FC<{
+  initialSets?: SetScore[];
+  onSave: (sets: SetScore[]) => Promise<void>;
+  onCancel: () => void;
+}> = ({ initialSets, onSave, onCancel }) => {
+  const [sets, setSets] = useState<SetInput[]>(() => toSetInputs(initialSets));
+  const [isSaving, setIsSaving] = useState(false);
+
+  const scores = toSetScores(sets);
+  const showThird = needsThirdSet(scores[0] || { us: 0, them: 0 }, scores[1] || { us: 0, them: 0 });
+  const visibleSets = showThird ? [sets[0], sets[1], sets[2] || { us: '', them: '' }] : [sets[0], sets[1]];
+  const winner = matchWinner(toSetScores(visibleSets));
+
+  const updateSet = (i: number, field: 'us' | 'them', value: string) => {
+    const cleaned = value.replace(/[^0-9]/g, '').slice(0, 2);
+    setSets(prev => {
+      const next = [...prev];
+      while (next.length <= i) next.push({ us: '', them: '' });
+      next[i] = { ...next[i], [field]: cleaned };
+      return next;
+    });
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await onSave(toSetScores(visibleSets));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {visibleSets.map((s, i) => (
+        <div key={i} className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-1">
+          <input
+            inputMode="numeric"
+            value={s.us}
+            onChange={e => updateSet(i, 'us', e.target.value)}
+            placeholder="0"
+            className="w-6 text-center text-xs font-bold focus:outline-none placeholder:text-slate-300"
+          />
+          <span className="text-slate-300 text-xs">-</span>
+          <input
+            inputMode="numeric"
+            value={s.them}
+            onChange={e => updateSet(i, 'them', e.target.value)}
+            placeholder="0"
+            className="w-6 text-center text-xs font-bold focus:outline-none placeholder:text-slate-300"
+          />
+        </div>
+      ))}
+      <button
+        onClick={handleSave}
+        disabled={!winner || isSaving}
+        title={winner ? 'Save' : 'Enter a decisive score first'}
+        className="p-2 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-all disabled:opacity-40 flex-shrink-0"
+      >
+        <Check className="w-3.5 h-3.5" />
+      </button>
+      <button onClick={onCancel} disabled={isSaving} className="p-2 rounded-lg bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all disabled:opacity-40 flex-shrink-0">
+        <X className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+};
+
+const ResultRow: React.FC<{
+  label: string;
+  sub?: string;
+  sets?: SetScore[];
+  isAdmin: boolean;
+  onSave: (sets: SetScore[]) => Promise<void>;
+  onRemove?: () => void;
+}> = ({ label, sub, sets, isAdmin, onSave, onRemove }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const winner = sets ? matchWinner(sets) : undefined;
+
+  const handleSave = async (newSets: SetScore[]) => {
+    await onSave(newSets);
+    setIsEditing(false);
+  };
+
+  if (isEditing) {
+    return (
+      <div className="flex flex-col gap-2 p-3 rounded-xl bg-slate-50 border border-slate-100">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="font-bold text-slate-700 text-xs truncate">{label}</span>
+          {sub && <span className="text-slate-400 text-[10px] flex-shrink-0">{sub}</span>}
+        </div>
+        <SetScoreEditor initialSets={sets} onSave={handleSave} onCancel={() => setIsEditing(false)} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-2 p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs">
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="font-bold text-slate-700 truncate">{label}</span>
+        {sub && <span className="text-slate-400 text-[10px] flex-shrink-0">{sub}</span>}
+      </div>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {sets && sets.length > 0 ? (
+          <>
+            <span className="text-slate-500 font-medium tracking-wide">
+              {sets.map((s, i) => <span key={i} className="ml-1.5 first:ml-0">{s.us}-{s.them}</span>)}
+            </span>
+            {winner && (
+              <span className={cn("px-1.5 py-0.5 rounded text-[9px] font-black uppercase", winner === 'us' ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-500")}>
+                {winner === 'us' ? 'Win' : 'Loss'}
+              </span>
+            )}
+          </>
+        ) : (
+          <span className="text-slate-300 italic">Not recorded</span>
+        )}
+        {isAdmin && (
+          <button onClick={() => setIsEditing(true)} title="Edit result" className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all">
+            <Edit2 className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {isAdmin && sets && sets.length > 0 && onRemove && (
+          <button onClick={onRemove} title="Remove result" className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const AddDoublesPairing: React.FC<{
+  candidates: Player[];
+  onAdd: (playerIds: [string, string], sets: SetScore[]) => Promise<void>;
+}> = ({ candidates, onAdd }) => {
+  const [selected, setSelected] = useState<string[]>([]);
+  const [isPicking, setIsPicking] = useState(false);
+
+  const toggle = (id: string) => {
+    setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : prev.length < 2 ? [...prev, id] : prev);
+  };
+
+  if (candidates.length < 2) return null;
+
+  if (!isPicking) {
+    return (
+      <button
+        onClick={() => setIsPicking(true)}
+        className="flex items-center justify-center gap-1.5 p-3 rounded-xl border border-dashed border-slate-200 text-slate-400 hover:border-emerald-300 hover:text-emerald-600 transition-all text-xs font-bold"
+      >
+        <Plus className="w-3.5 h-3.5" /> Add Doubles Pairing
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2 p-3 rounded-xl bg-slate-50 border border-slate-100">
+      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Pick 2 Players</span>
+      <div className="flex flex-wrap gap-1.5">
+        {candidates.map(p => (
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => toggle(p.id)}
+            disabled={!selected.includes(p.id) && selected.length >= 2}
+            className={cn(
+              "px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all",
+              selected.includes(p.id)
+                ? "bg-sky-600 text-white"
+                : "bg-white border border-slate-200 text-slate-500 hover:border-sky-300 disabled:opacity-40"
+            )}
+          >
+            {p.name}
+          </button>
+        ))}
+      </div>
+      {selected.length === 2 ? (
+        <SetScoreEditor
+          onSave={async (sets) => {
+            await onAdd([selected[0], selected[1]], sets);
+            setSelected([]);
+            setIsPicking(false);
+          }}
+          onCancel={() => setSelected([])}
+        />
+      ) : (
+        <div className="flex justify-end">
+          <button onClick={() => { setIsPicking(false); setSelected([]); }} className="text-[10px] text-slate-400 hover:text-slate-600 font-bold">
+            Cancel
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const ResultsPanel: React.FC<{
+  year: string;
+  league: string;
+  match: Match;
+  players: Player[];
+  singlesPlayers: Player[];
+  doublesPlayers: Player[];
+  isAdmin: boolean;
+}> = ({ year, league, match, players, singlesPlayers, doublesPlayers, isAdmin }) => {
+  const singlesResults = match.singlesResults || [];
+  const doublesResults = match.doublesResults || [];
+  const nameOf = (id: string) => players.find(p => p.id === id)?.name || 'Unknown';
+
+  const save = async (newSingles: SinglesResult[], newDoubles: DoublesResult[]) => {
+    const { teamScore, opponentScore } = computeTeamScore(newSingles, newDoubles);
+    await tennisService.updateMatch(year, league, match.id, {
+      singlesResults: newSingles,
+      doublesResults: newDoubles,
+      teamScore,
+      opponentScore
+    });
+  };
+
+  const saveSingles = (playerId: string) => async (sets: SetScore[]) => {
+    const next = [...singlesResults.filter(r => r.playerId !== playerId), { playerId, sets }];
+    await save(next, doublesResults);
+  };
+
+  const removeSingles = (playerId: string) => () =>
+    save(singlesResults.filter(r => r.playerId !== playerId), doublesResults);
+
+  const saveDoublesPair = (index: number, playerIds: [string, string]) => async (sets: SetScore[]) => {
+    const next = [...doublesResults];
+    next[index] = { playerIds, sets };
+    await save(singlesResults, next);
+  };
+
+  const addDoublesPair = async (playerIds: [string, string], sets: SetScore[]) => {
+    await save(singlesResults, [...doublesResults, { playerIds, sets }]);
+  };
+
+  const removeDoublesPair = (index: number) => () =>
+    save(singlesResults, doublesResults.filter((_, i) => i !== index));
+
+  const pairedPlayerIds = new Set(doublesResults.flatMap(r => r.playerIds));
+  const pairingCandidates = doublesPlayers.filter(p => !pairedPlayerIds.has(p.id));
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
+        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Singles</span>
+        <div className="flex flex-col gap-1.5">
+          {singlesPlayers.length === 0 && <span className="text-xs text-slate-400 italic">No singles lineup recorded</span>}
+          {singlesPlayers.map(p => (
+            <ResultRow
+              key={p.id}
+              label={p.name}
+              sub={`#${p.rank}`}
+              sets={singlesResults.find(r => r.playerId === p.id)?.sets}
+              isAdmin={isAdmin}
+              onSave={saveSingles(p.id)}
+              onRemove={removeSingles(p.id)}
+            />
+          ))}
+        </div>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Doubles</span>
+        <div className="flex flex-col gap-1.5">
+          {doublesResults.length === 0 && pairingCandidates.length < 2 && (
+            <span className="text-xs text-slate-400 italic">No doubles lineup recorded</span>
+          )}
+          {doublesResults.map((r, i) => (
+            <ResultRow
+              key={i}
+              label={r.playerIds.map(nameOf).join(' & ')}
+              sets={r.sets}
+              isAdmin={isAdmin}
+              onSave={saveDoublesPair(i, r.playerIds)}
+              onRemove={removeDoublesPair(i)}
+            />
+          ))}
+          {isAdmin && doublesResults.length < 3 && (
+            <AddDoublesPairing candidates={pairingCandidates} onAdd={addDoublesPair} />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const MatchRoster: React.FC<{ year: string; league: string; match: Match; players: Player[]; isAdmin: boolean; userId?: string; compact?: boolean }> = ({ year, league, match, players, isAdmin, userId, compact }) => {
   const [entries, setEntries] = useState<AvailabilityEntry[]>([]);
-  const [viewAvailability, setViewAvailability] = useState(false);
+  const [view, setView] = useState<'lineup' | 'availability' | 'results'>('lineup');
   const [mvpVotes, setMvpVotes] = useState<MvpVote[]>([]);
   const [copied, setCopied] = useState(false);
 
@@ -273,7 +581,14 @@ const MatchRoster: React.FC<{ year: string; league: string; match: Match; player
 
   const handleConfirm = async (singles: string[], doubles: string[]) => {
     await tennisService.setLineup(year, league, match.id, singles, doubles);
-    setViewAvailability(false);
+    setView('lineup');
+  };
+
+  const winnerFor = (playerId: string): 'win' | 'loss' | undefined => {
+    const singlesResult = (match.singlesResults || []).find(r => r.playerId === playerId);
+    const doublesResult = (match.doublesResults || []).find(r => r.playerIds.includes(playerId));
+    const w = singlesResult ? matchWinner(singlesResult.sets) : doublesResult ? matchWinner(doublesResult.sets) : undefined;
+    return w === undefined ? undefined : w === 'us' ? 'win' : 'loss';
   };
 
   const myVote = userId ? mvpVotes.find(v => v.voterId === userId) : undefined;
@@ -289,23 +604,6 @@ const MatchRoster: React.FC<{ year: string; league: string; match: Match; player
     await tennisService.retractMvpVote(year, league, match.id, userId);
   };
 
-  if (!hasLineup || viewAvailability) {
-    return (
-      <div className="mt-8 flex flex-col gap-4">
-        {isAdmin ? (
-          <LineupPicker players={players} entries={entries} initialSingles={lineupSingles} initialDoubles={lineupDoubles} onConfirm={handleConfirm} compact={compact} />
-        ) : (
-          <AvailabilityList entries={entries} players={players} />
-        )}
-        {hasLineup && (
-          <div className="flex justify-end">
-            <button onClick={() => setViewAvailability(false)} className="text-xs text-emerald-600 font-bold hover:underline">Lineup</button>
-          </div>
-        )}
-      </div>
-    );
-  }
-
   const singlesSorted = lineupSingles
     .map(playerById)
     .filter((p): p is Player => !!p)
@@ -315,6 +613,43 @@ const MatchRoster: React.FC<{ year: string; league: string; match: Match; player
     .map(playerById)
     .filter((p): p is Player => !!p)
     .sort((a, b) => a.rank - b.rank);
+
+  if (!hasLineup || view === 'availability') {
+    return (
+      <div className="mt-8 flex flex-col gap-4">
+        {isAdmin ? (
+          <LineupPicker players={players} entries={entries} initialSingles={lineupSingles} initialDoubles={lineupDoubles} onConfirm={handleConfirm} compact={compact} />
+        ) : (
+          <AvailabilityList entries={entries} players={players} />
+        )}
+        {hasLineup && (
+          <div className="flex justify-end">
+            <button onClick={() => setView('lineup')} className="text-xs text-emerald-600 font-bold hover:underline">Lineup</button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (view === 'results') {
+    return (
+      <div className="mt-8 flex flex-col gap-3">
+        <div className="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
+          <span>Results</span>
+          <button onClick={() => setView('lineup')} className="text-emerald-600 hover:underline normal-case font-bold">Lineup</button>
+        </div>
+        <ResultsPanel
+          year={year}
+          league={league}
+          match={match}
+          players={players}
+          singlesPlayers={singlesSorted}
+          doublesPlayers={doublesSorted}
+          isAdmin={isAdmin}
+        />
+      </div>
+    );
+  }
 
   const copyLineup = async () => {
     const lines = [
@@ -354,7 +689,10 @@ const MatchRoster: React.FC<{ year: string; league: string; match: Match; player
             {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
             {copied ? 'Copied' : 'Copy'}
           </button>
-          <button onClick={() => setViewAvailability(true)} className="text-emerald-600 hover:underline normal-case font-bold">Availability</button>
+          {match.status === 'Completed' && (
+            <button onClick={() => setView('results')} className="text-emerald-600 hover:underline normal-case font-bold">Results</button>
+          )}
+          <button onClick={() => setView('availability')} className="text-emerald-600 hover:underline normal-case font-bold">Availability</button>
         </div>
       </div>
       <div className={cn("grid gap-4", doublesSorted.length > 0 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1")}>
@@ -371,6 +709,7 @@ const MatchRoster: React.FC<{ year: string; league: string; match: Match; player
                 isMyVote={myVote?.playerId === p.id}
                 hasVoted={!!myVote}
                 onVote={() => handleVote(p.id)}
+                result={match.status === 'Completed' ? winnerFor(p.id) : undefined}
               />
             ))}
           </div>
@@ -387,6 +726,7 @@ const MatchRoster: React.FC<{ year: string; league: string; match: Match; player
                   isMyVote={myVote?.playerId === p.id}
                   hasVoted={!!myVote}
                   onVote={() => handleVote(p.id)}
+                  result={match.status === 'Completed' ? winnerFor(p.id) : undefined}
                 />
               ))}
             </div>

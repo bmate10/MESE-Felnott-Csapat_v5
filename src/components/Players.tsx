@@ -5,6 +5,7 @@ import { tennisService } from '../services/tennisService';
 import { Player, Match, MvpVote, MVP_SKIP_ID } from '../types';
 import { format } from 'date-fns';
 import { cn } from '../lib/utils';
+import { matchWinner } from '../lib/results';
 
 export const Players: React.FC = () => {
   const { year, league, user, isAdmin } = useAppContext();
@@ -71,6 +72,13 @@ export const Players: React.FC = () => {
     return tied ? undefined : topId;
   };
 
+  const individualResultFor = (m: Match, playerId: string): 'win' | 'loss' | undefined => {
+    const singlesResult = (m.singlesResults || []).find(r => r.playerId === playerId);
+    const doublesResult = (m.doublesResults || []).find(r => r.playerIds.includes(playerId));
+    const w = singlesResult ? matchWinner(singlesResult.sets) : doublesResult ? matchWinner(doublesResult.sets) : undefined;
+    return w === undefined ? undefined : w === 'us' ? 'win' : 'loss';
+  };
+
   const statsFor = (playerId: string) => {
     const played = completedMatches.filter(m =>
       (m.lineupSingles || []).includes(playerId) || (m.lineupDoubles || []).includes(playerId)
@@ -78,8 +86,10 @@ export const Players: React.FC = () => {
     const singlesCount = played.filter(m => (m.lineupSingles || []).includes(playerId)).length;
     const doublesCount = played.filter(m => (m.lineupDoubles || []).includes(playerId)).length;
     const mvpWins = completedMatches.filter(m => matchMvpWinnerId(m.id) === playerId).length;
+    const wins = played.filter(m => individualResultFor(m, playerId) === 'win').length;
+    const losses = played.filter(m => individualResultFor(m, playerId) === 'loss').length;
     const recent = [...played].sort((a, b) => b.date.toMillis() - a.date.toMillis()).slice(0, 3);
-    return { played: played.length, singlesCount, doublesCount, mvpWins, recent };
+    return { played: played.length, singlesCount, doublesCount, mvpWins, wins, losses, recent };
   };
 
   const handleAdd = async (e: React.FormEvent) => {
@@ -322,11 +332,15 @@ export const Players: React.FC = () => {
               )}
               {isExpanded && stats && (
                 <div className="px-4 pb-4 pt-1 border-t border-slate-100 flex flex-col gap-4">
-                  <div className="grid grid-cols-3 gap-3 pt-3">
+                  <div className="grid grid-cols-2 gap-3 pt-3">
                     <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-center">
                       <p className="text-xl font-bold text-slate-800">{stats.played}</p>
                       <p className="text-[9px] uppercase font-bold text-slate-400 tracking-widest">Played</p>
                       <p className="text-[9px] text-slate-400 mt-0.5">{stats.singlesCount}S &middot; {stats.doublesCount}D</p>
+                    </div>
+                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-center">
+                      <p className="text-xl font-bold text-slate-800">{stats.wins}-{stats.losses}</p>
+                      <p className="text-[9px] uppercase font-bold text-slate-400 tracking-widest">W-L Ratio</p>
                     </div>
                     <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-center">
                       <p className="text-xl font-bold text-slate-800">{stats.mvpWins}</p>
@@ -341,7 +355,7 @@ export const Players: React.FC = () => {
                     <div className="flex flex-col gap-1.5">
                       <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Recent Matches</span>
                       {stats.recent.map(m => {
-                        const isWin = (m.teamScore || 0) > (m.opponentScore || 0);
+                        const result = individualResultFor(m, player.id);
                         const wasMvp = matchMvpWinnerId(m.id) === player.id;
                         return (
                           <div key={m.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-100 text-xs">
@@ -350,9 +364,9 @@ export const Players: React.FC = () => {
                             {wasMvp && <Trophy className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />}
                             <span className={cn(
                               "px-2 py-0.5 rounded text-[9px] font-bold uppercase flex-shrink-0",
-                              isWin ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-500"
+                              result === 'win' ? "bg-emerald-100 text-emerald-700" : result === 'loss' ? "bg-red-100 text-red-500" : "bg-slate-100 text-slate-400"
                             )}>
-                              {isWin ? 'Win' : 'Loss'}
+                              {result === 'win' ? 'Win' : result === 'loss' ? 'Loss' : 'N/A'}
                             </span>
                           </div>
                         );

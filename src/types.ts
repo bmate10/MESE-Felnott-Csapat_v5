@@ -10,6 +10,21 @@ export interface Player {
   uid?: string; // Google account uid managing this player's availability
 }
 
+export interface SetScore {
+  us: number;
+  them: number;
+}
+
+export interface SinglesResult {
+  playerId: string;
+  sets: SetScore[]; // 2 sets, or 3 if the first two were split
+}
+
+export interface DoublesResult {
+  playerIds: [string, string]; // pairing is decided when the result is recorded, not at lineup time
+  sets: SetScore[];
+}
+
 export interface Match {
   id: string;
   opponent: string;
@@ -22,6 +37,8 @@ export interface Match {
   opponentScore?: number;
   lineupSingles?: string[]; // Up to 6 player ids; court order derives from each player's club rank
   lineupDoubles?: string[]; // Player ids in the doubles pool for the day (pairing decided onsite)
+  singlesResults?: SinglesResult[];
+  doublesResults?: DoublesResult[];
 }
 
 // Doc id is the playerId; lives at matches/{matchId}/availability/{playerId}
