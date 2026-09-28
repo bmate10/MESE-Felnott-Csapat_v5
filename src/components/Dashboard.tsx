@@ -8,16 +8,15 @@ import { Match, Player, MvpVote, MVP_SKIP_ID, AvailabilityStatus } from '../type
 import { format } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
 import { cn } from '../lib/utils';
-import { tallyIndividualRecords, winRate as individualWinRate } from '../lib/results';
+import { tallyIndividualRecords, winRate as individualWinRate, IndividualRecord } from '../lib/results';
 
-interface WinRateEntry {
+interface LeaderEntry {
   player: Player;
-  wins: number;
-  losses: number;
-  rate: number;
+  value: string;
+  label: string;
 }
 
-const WinRateTile: React.FC<{ title: string; entries: WinRateEntry[]; emptyText: string }> = ({ title, entries, emptyText }) => (
+const LeaderTile: React.FC<{ title: string; entries: LeaderEntry[]; emptyText: string }> = ({ title, entries, emptyText }) => (
   <div className="bg-linear-to-br from-white to-emerald-50 rounded-2xl shadow-sm border border-emerald-100 p-6">
     <h2 className="font-bold text-slate-800 mb-6">{title}</h2>
     <div className="flex flex-col gap-2">
@@ -39,8 +38,8 @@ const WinRateTile: React.FC<{ title: string; entries: WinRateEntry[]; emptyText:
               </div>
             </div>
             <div className="text-right">
-              <p className="text-lg font-bold text-emerald-600">{e.wins}-{e.losses}</p>
-              <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">{Math.round(e.rate * 100)}% Won</p>
+              <p className="text-lg font-bold text-emerald-600">{e.value}</p>
+              <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">{e.label}</p>
             </div>
           </div>
         ))
@@ -141,11 +140,22 @@ export const Dashboard: React.FC = () => {
     .map(([pid]) => players.find(p => p.id === pid))
     .filter((p): p is Player => !!p);
 
-  const topSingles: WinRateEntry[] = Object.entries(tallyIndividualRecords(completedMatches))
-    .map(([pid, rec]) => ({ player: players.find(p => p.id === pid), ...rec.singles, rate: individualWinRate(rec.singles) }))
-    .filter((e): e is WinRateEntry => !!e.player && e.rate !== undefined)
-    .sort((a, b) => b.rate - a.rate || b.wins - a.wins || a.losses - b.losses)
-    .slice(0, 2);
+  const records = Object.entries(tallyIndividualRecords(completedMatches))
+    .map(([pid, rec]) => ({ player: players.find(p => p.id === pid), rec }))
+    .filter((e): e is { player: Player; rec: IndividualRecord } => !!e.player);
+
+  const topSingles: LeaderEntry[] = records
+    .map(e => ({ ...e, rate: individualWinRate(e.rec.singles) }))
+    .filter((e): e is typeof e & { rate: number } => e.rate !== undefined)
+    .sort((a, b) => b.rate - a.rate || b.rec.singles.wins - a.rec.singles.wins || a.rec.singles.losses - b.rec.singles.losses)
+    .slice(0, 2)
+    .map(e => ({ player: e.player, value: `${e.rec.singles.wins}-${e.rec.singles.losses}`, label: `${Math.round(e.rate * 100)}% Won` }));
+
+  const mostDoublesWins: LeaderEntry[] = records
+    .filter(e => e.rec.doubles.wins > 0)
+    .sort((a, b) => b.rec.doubles.wins - a.rec.doubles.wins || a.rec.doubles.losses - b.rec.doubles.losses)
+    .slice(0, 2)
+    .map(e => ({ player: e.player, value: String(e.rec.doubles.wins), label: `Wins · ${e.rec.doubles.wins}-${e.rec.doubles.losses}` }));
 
   const hasVotedAllMvp =!user || completedMatches.length === 0 || completedMatches.every(m =>
     (matchVotesMap[m.id] || []).some(v => v.voterId === user.uid)
@@ -445,7 +455,9 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          <WinRateTile title="Top Singles Win Rate" entries={topSingles} emptyText="No singles results recorded yet" />        </div>
+          <LeaderTile title="Top Singles Win Rate" entries={topSingles} emptyText="No singles results recorded yet" />
+          <LeaderTile title="Most Doubles Wins" entries={mostDoublesWins} emptyText="No doubles wins recorded yet" />
+        </div>
 
         {matches.length === 0 && (
           <div className="col-span-12 p-12 bg-white rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center gap-6">
