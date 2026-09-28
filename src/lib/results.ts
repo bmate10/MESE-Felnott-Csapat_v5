@@ -1,4 +1,4 @@
-import { SetScore, SinglesResult, DoublesResult } from '../types';
+import { SetScore, SinglesResult, DoublesResult, Match } from '../types';
 
 export function setWinner(set: SetScore): 'us' | 'them' | undefined {
   if (set.us === set.them) return undefined;
@@ -23,6 +23,41 @@ export function needsThirdSet(set1: SetScore, set2: SetScore): boolean {
   const w1 = setWinner(set1);
   const w2 = setWinner(set2);
   return !!w1 && !!w2 && w1 !== w2;
+}
+
+// A player can have both a singles and a doubles result in the same
+// fixture, so these are listed per individual match, not per fixture.
+export function individualResultsFor(match: Match, playerId: string): { kind: 'singles' | 'doubles'; won: boolean }[] {
+  const results: { kind: 'singles' | 'doubles'; won: boolean }[] = [];
+  (match.singlesResults || []).forEach(r => {
+    const w = r.playerId === playerId ? matchWinner(r.sets) : undefined;
+    if (w) results.push({ kind: 'singles', won: w === 'us' });
+  });
+  (match.doublesResults || []).forEach(r => {
+    const w = r.playerIds.includes(playerId) ? matchWinner(r.sets) : undefined;
+    if (w) results.push({ kind: 'doubles', won: w === 'us' });
+  });
+  return results;
+}
+
+// Individual W-L per player across all given matches; a doubles result
+// counts for both partners.
+export function tallyIndividualRecords(matches: Match[]): Record<string, { wins: number; losses: number }> {
+  const records: Record<string, { wins: number; losses: number }> = {};
+  const add = (playerIds: string[], sets: SetScore[]) => {
+    const w = matchWinner(sets);
+    if (!w) return;
+    playerIds.forEach(id => {
+      const rec = records[id] || (records[id] = { wins: 0, losses: 0 });
+      if (w === 'us') rec.wins++;
+      else rec.losses++;
+    });
+  };
+  matches.forEach(m => {
+    (m.singlesResults || []).forEach(r => add([r.playerId], r.sets));
+    (m.doublesResults || []).forEach(r => add(r.playerIds, r.sets));
+  });
+  return records;
 }
 
 // The team score always sums to 9 (6 singles + 3 doubles); this counts

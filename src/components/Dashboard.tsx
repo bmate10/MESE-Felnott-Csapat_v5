@@ -4,11 +4,11 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { History, Shield, Trophy, MapPin, ChevronRight } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { tennisService } from '../services/tennisService';
-import { Match, Player, MvpVote, MVP_SKIP_ID, AvailabilityStatus, SetScore } from '../types';
+import { Match, Player, MvpVote, MVP_SKIP_ID, AvailabilityStatus } from '../types';
 import { format } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
 import { cn } from '../lib/utils';
-import { matchWinner } from '../lib/results';
+import { tallyIndividualRecords } from '../lib/results';
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -102,23 +102,7 @@ export const Dashboard: React.FC = () => {
     .map(([pid]) => players.find(p => p.id === pid))
     .filter((p): p is Player => !!p);
 
-  // Individual W-L across recorded singles and doubles results; a doubles
-  // result counts for both partners.
-  const individualRecord: Record<string, { wins: number; losses: number }> = {};
-  const tallyResult = (playerIds: string[], sets: SetScore[]) => {
-    const winner = matchWinner(sets);
-    if (!winner) return;
-    playerIds.forEach(id => {
-      const rec = individualRecord[id] || (individualRecord[id] = { wins: 0, losses: 0 });
-      if (winner === 'us') rec.wins++;
-      else rec.losses++;
-    });
-  };
-  completedMatches.forEach(m => {
-    (m.singlesResults || []).forEach(r => tallyResult([r.playerId], r.sets));
-    (m.doublesResults || []).forEach(r => tallyResult(r.playerIds, r.sets));
-  });
-  const topPerformers = Object.entries(individualRecord)
+  const topPerformers = Object.entries(tallyIndividualRecords(completedMatches))
     .map(([pid, rec]) => ({ player: players.find(p => p.id === pid), ...rec, rate: rec.wins / (rec.wins + rec.losses) }))
     .filter((e): e is { player: Player; wins: number; losses: number; rate: number } => !!e.player)
     .sort((a, b) => b.rate - a.rate || b.wins - a.wins || a.losses - b.losses)

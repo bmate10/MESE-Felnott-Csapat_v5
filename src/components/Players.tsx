@@ -5,7 +5,7 @@ import { tennisService } from '../services/tennisService';
 import { Player, Match, MvpVote, MVP_SKIP_ID } from '../types';
 import { format } from 'date-fns';
 import { cn } from '../lib/utils';
-import { matchWinner } from '../lib/results';
+import { tallyIndividualRecords, individualResultsFor } from '../lib/results';
 
 export const Players: React.FC = () => {
   const { year, league, user, isAdmin } = useAppContext();
@@ -72,12 +72,7 @@ export const Players: React.FC = () => {
     return tied ? undefined : topId;
   };
 
-  const individualResultFor = (m: Match, playerId: string): 'win' | 'loss' | undefined => {
-    const singlesResult = (m.singlesResults || []).find(r => r.playerId === playerId);
-    const doublesResult = (m.doublesResults || []).find(r => r.playerIds.includes(playerId));
-    const w = singlesResult ? matchWinner(singlesResult.sets) : doublesResult ? matchWinner(doublesResult.sets) : undefined;
-    return w === undefined ? undefined : w === 'us' ? 'win' : 'loss';
-  };
+  const individualRecords = tallyIndividualRecords(completedMatches);
 
   const statsFor = (playerId: string) => {
     const played = completedMatches.filter(m =>
@@ -86,8 +81,7 @@ export const Players: React.FC = () => {
     const singlesCount = played.filter(m => (m.lineupSingles || []).includes(playerId)).length;
     const doublesCount = played.filter(m => (m.lineupDoubles || []).includes(playerId)).length;
     const mvpWins = completedMatches.filter(m => matchMvpWinnerId(m.id) === playerId).length;
-    const wins = played.filter(m => individualResultFor(m, playerId) === 'win').length;
-    const losses = played.filter(m => individualResultFor(m, playerId) === 'loss').length;
+    const { wins, losses } = individualRecords[playerId] || { wins: 0, losses: 0 };
     const recent = [...played].sort((a, b) => b.date.toMillis() - a.date.toMillis()).slice(0, 3);
     return { played: played.length, singlesCount, doublesCount, mvpWins, wins, losses, recent };
   };
@@ -355,19 +349,29 @@ export const Players: React.FC = () => {
                     <div className="flex flex-col gap-1.5">
                       <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Recent Matches</span>
                       {stats.recent.map(m => {
-                        const result = individualResultFor(m, player.id);
+                        const results = individualResultsFor(m, player.id);
                         const wasMvp = matchMvpWinnerId(m.id) === player.id;
                         return (
                           <div key={m.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-100 text-xs">
                             <span className="font-bold text-slate-700 truncate">{m.opponent}</span>
                             <span className="text-slate-400">{format(m.date.toDate(), 'MMM d')}</span>
                             {wasMvp && <Trophy className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />}
-                            <span className={cn(
-                              "px-2 py-0.5 rounded text-[9px] font-bold uppercase flex-shrink-0",
-                              result === 'win' ? "bg-emerald-100 text-emerald-700" : result === 'loss' ? "bg-red-100 text-red-500" : "bg-slate-100 text-slate-400"
-                            )}>
-                              {result === 'win' ? 'Win' : result === 'loss' ? 'Loss' : 'N/A'}
-                            </span>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              {results.length === 0 ? (
+                                <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase bg-slate-100 text-slate-400">N/A</span>
+                              ) : results.map((r, i) => (
+                                <span
+                                  key={i}
+                                  title={r.kind === 'singles' ? 'Singles' : 'Doubles'}
+                                  className={cn(
+                                    "px-2 py-0.5 rounded text-[9px] font-bold uppercase",
+                                    r.won ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-500"
+                                  )}
+                                >
+                                  {r.kind === 'singles' ? 'S' : 'D'} {r.won ? 'Win' : 'Loss'}
+                                </span>
+                              ))}
+                            </div>
                           </div>
                         );
                       })}
