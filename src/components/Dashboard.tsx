@@ -141,15 +141,11 @@ export const Dashboard: React.FC = () => {
     .map(([pid]) => players.find(p => p.id === pid))
     .filter((p): p is Player => !!p);
 
-  const individualRecords = tallyIndividualRecords(completedMatches);
-  const topByWinRate = (kind: 'singles' | 'doubles'): WinRateEntry[] =>
-    Object.entries(individualRecords)
-      .map(([pid, rec]) => ({ player: players.find(p => p.id === pid), ...rec[kind], rate: individualWinRate(rec[kind]) }))
-      .filter((e): e is WinRateEntry => !!e.player && e.rate !== undefined)
-      .sort((a, b) => b.rate - a.rate || b.wins - a.wins || a.losses - b.losses)
-      .slice(0, 2);
-  const topSingles = topByWinRate('singles');
-  const topDoubles = topByWinRate('doubles');
+  const topSingles: WinRateEntry[] = Object.entries(tallyIndividualRecords(completedMatches))
+    .map(([pid, rec]) => ({ player: players.find(p => p.id === pid), ...rec.singles, rate: individualWinRate(rec.singles) }))
+    .filter((e): e is WinRateEntry => !!e.player && e.rate !== undefined)
+    .sort((a, b) => b.rate - a.rate || b.wins - a.wins || a.losses - b.losses)
+    .slice(0, 2);
 
   const hasVotedAllMvp =!user || completedMatches.length === 0 || completedMatches.every(m =>
     (matchVotesMap[m.id] || []).some(v => v.voterId === user.uid)
@@ -449,9 +445,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          <WinRateTile title="Top Singles Win Rate" entries={topSingles} emptyText="No singles results recorded yet" />
-          <WinRateTile title="Top Doubles Win Rate" entries={topDoubles} emptyText="No doubles results recorded yet" />
-        </div>
+          <WinRateTile title="Top Singles Win Rate" entries={topSingles} emptyText="No singles results recorded yet" />        </div>
 
         {matches.length === 0 && (
           <div className="col-span-12 p-12 bg-white rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center gap-6">
