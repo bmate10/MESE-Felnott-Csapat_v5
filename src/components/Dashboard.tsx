@@ -4,10 +4,11 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { History, Shield, Trophy, MapPin, ChevronRight } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { tennisService } from '../services/tennisService';
-import { Match, Player, MvpVote, MVP_SKIP_ID, AvailabilityStatus } from '../types';
+import { Match, Player, MvpVote, MVP_SKIP_ID, AvailabilityStatus, SetScore } from '../types';
 import { format } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
 import { cn } from '../lib/utils';
+import { matchWinner } from '../lib/results';
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -101,7 +102,29 @@ export const Dashboard: React.FC = () => {
     .map(([pid]) => players.find(p => p.id === pid))
     .filter((p): p is Player => !!p);
 
-  const hasVotedAllMvp = !user || completedMatches.length === 0 || completedMatches.every(m =>
+  // Individual W-L across recorded singles and doubles results; a doubles
+  // result counts for both partners.
+  const individualRecord: Record<string, { wins: number; losses: number }> = {};
+  const tallyResult = (playerIds: string[], sets: SetScore[]) => {
+    const winner = matchWinner(sets);
+    if (!winner) return;
+    playerIds.forEach(id => {
+      const rec = individualRecord[id] || (individualRecord[id] = { wins: 0, losses: 0 });
+      if (winner === 'us') rec.wins++;
+      else rec.losses++;
+    });
+  };
+  completedMatches.forEach(m => {
+    (m.singlesResults || []).forEach(r => tallyResult([r.playerId], r.sets));
+    (m.doublesResults || []).forEach(r => tallyResult(r.playerIds, r.sets));
+  });
+  const topPerformers = Object.entries(individualRecord)
+    .map(([pid, rec]) => ({ player: players.find(p => p.id === pid), ...rec, rate: rec.wins / (rec.wins + rec.losses) }))
+    .filter((e): e is { player: Player; wins: number; losses: number; rate: number } => !!e.player)
+    .sort((a, b) => b.rate - a.rate || b.wins - a.wins || a.losses - b.losses)
+    .slice(0, 2);
+
+  const hasVotedAllMvp =!user || completedMatches.length === 0 || completedMatches.every(m =>
     (matchVotesMap[m.id] || []).some(v => v.voterId === user.uid)
   );
 
@@ -392,6 +415,39 @@ export const Dashboard: React.FC = () => {
                     <div className="text-right">
                       <p className={cn("text-lg font-bold", i === 0 ? "text-emerald-600" : "text-slate-800")}>{matchWinnerCounts[p.id] || 0}</p>
                       <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">MVP Wins</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="bg-linear-to-br from-white to-emerald-50 rounded-2xl shadow-sm border border-emerald-100 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-bold text-slate-800">Top Performers</h2>
+              <span className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider">Win Rate</span>
+            </div>
+            <div className="flex flex-col gap-2">
+              {topPerformers.length === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-6">No individual results recorded yet</p>
+              ) : (
+                topPerformers.map((e, i) => (
+                  <div key={e.player.id} className="flex items-center justify-between p-3 rounded-xl bg-white/70 border border-emerald-100">
+                    <div className="flex items-center gap-3">
+                      <span className={cn(
+                        "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0",
+                        i === 0 ? "bg-emerald-500 text-white" : "bg-emerald-100 text-emerald-700"
+                      )}>
+                        {i + 1}
+                      </span>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-bold text-slate-800">{e.player.name}</span>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Rank #{e.player.rank}</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-emerald-600">{e.wins}-{e.losses}</p>
+                      <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">{Math.round(e.rate * 100)}% Won</p>
                     </div>
                   </div>
                 ))
