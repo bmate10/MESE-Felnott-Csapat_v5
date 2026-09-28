@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Plus, User, Trash2, Edit2, ShieldAlert, Link2Off, Link2, ChevronDown, Trophy, Check, X } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { tennisService } from '../services/tennisService';
-import { Player, Match, MvpVote, MVP_SKIP_ID } from '../types';
+import { Player, Match, MvpVote } from '../types';
+import { matchMvpWinners } from '../lib/mvp';
 import { format } from 'date-fns';
 import { cn } from '../lib/utils';
 import { tallyIndividualRecords, individualResultsFor, emptyRecord, winRate, WinLoss } from '../lib/results';
@@ -71,20 +72,8 @@ export const Players: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [year, league, user, completedIds]);
 
-  const matchMvpWinnerId = (matchId: string): string | undefined => {
-    const votes = (matchVotesMap[matchId] || []).filter(v => v.playerId !== MVP_SKIP_ID);
-    if (votes.length === 0) return undefined;
-    const tally: Record<string, number> = {};
-    votes.forEach(v => { tally[v.playerId] = (tally[v.playerId] || 0) + 1; });
-    let topId: string | undefined;
-    let topCount = 0;
-    let tied = false;
-    Object.entries(tally).forEach(([pid, count]) => {
-      if (count > topCount) { topId = pid; topCount = count; tied = false; }
-      else if (count === topCount) { tied = true; }
-    });
-    return tied ? undefined : topId;
-  };
+  const wasMatchMvp = (matchId: string, playerId: string) =>
+    matchMvpWinners(matchVotesMap[matchId] || []).includes(playerId);
 
   const individualRecords = tallyIndividualRecords(completedMatches);
 
@@ -94,7 +83,7 @@ export const Players: React.FC = () => {
     );
     const singlesCount = played.filter(m => (m.lineupSingles || []).includes(playerId)).length;
     const doublesCount = played.filter(m => (m.lineupDoubles || []).includes(playerId)).length;
-    const mvpWins = completedMatches.filter(m => matchMvpWinnerId(m.id) === playerId).length;
+    const mvpWins = completedMatches.filter(m => wasMatchMvp(m.id, playerId)).length;
     const record = individualRecords[playerId] || emptyRecord();
     const recent = [...played].sort((a, b) => b.date.toMillis() - a.date.toMillis());
     return { played: played.length, singlesCount, doublesCount, mvpWins, record, recent };
@@ -358,7 +347,7 @@ export const Players: React.FC = () => {
                       <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Recent Matches</span>
                       {(showAllRecent ? stats.recent : stats.recent.slice(0, 3)).map(m => {
                         const results = individualResultsFor(m, player.id);
-                        const wasMvp = matchMvpWinnerId(m.id) === player.id;
+                        const wasMvp = wasMatchMvp(m.id, player.id);
                         const badge = (kind: 'singles' | 'doubles') => {
                           const r = results.find(x => x.kind === kind);
                           if (!r) return <span />;

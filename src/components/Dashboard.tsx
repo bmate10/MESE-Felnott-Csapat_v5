@@ -4,11 +4,12 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { History, Shield, Trophy, MapPin, ChevronRight } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { tennisService } from '../services/tennisService';
-import { Match, Player, MvpVote, MVP_SKIP_ID, AvailabilityStatus } from '../types';
+import { Match, Player, MvpVote, AvailabilityStatus } from '../types';
 import { format } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
 import { cn } from '../lib/utils';
 import { tallyIndividualRecords, winRate as individualWinRate, IndividualRecord } from '../lib/results';
+import { candidatePlayerIds, matchMvpWinners } from '../lib/mvp';
 
 interface LeaderEntry {
   player: Player;
@@ -102,8 +103,9 @@ export const Dashboard: React.FC = () => {
   const seasonTally: Record<string, number> = {};
   for (const matchId in matchVotesMap) {
     matchVotesMap[matchId].forEach(v => {
-      if (v.playerId === MVP_SKIP_ID) return;
-      seasonTally[v.playerId] = (seasonTally[v.playerId] || 0) + 1;
+      candidatePlayerIds(v.playerId).forEach(pid => {
+        seasonTally[pid] = (seasonTally[pid] || 0) + 1;
+      });
     });
   }
   let leaderId: string | undefined;
@@ -118,20 +120,9 @@ export const Dashboard: React.FC = () => {
 
   const matchWinnerCounts: Record<string, number> = {};
   completedMatches.forEach(m => {
-    const votes = (matchVotesMap[m.id] || []).filter(v => v.playerId !== MVP_SKIP_ID);
-    if (votes.length === 0) return;
-    const tally: Record<string, number> = {};
-    votes.forEach(v => { tally[v.playerId] = (tally[v.playerId] || 0) + 1; });
-    let topId: string | undefined;
-    let topCount = 0;
-    let tied = false;
-    Object.entries(tally).forEach(([pid, count]) => {
-      if (count > topCount) { topId = pid; topCount = count; tied = false; }
-      else if (count === topCount) { tied = true; }
+    matchMvpWinners(matchVotesMap[m.id] || []).forEach(pid => {
+      matchWinnerCounts[pid] = (matchWinnerCounts[pid] || 0) + 1;
     });
-    if (!tied && topId) {
-      matchWinnerCounts[topId] = (matchWinnerCounts[topId] || 0) + 1;
-    }
   });
 
   const topMvpPlayers = Object.entries(seasonTally)

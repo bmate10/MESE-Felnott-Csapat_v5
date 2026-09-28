@@ -7,7 +7,8 @@ import { Match, Player, Season, HomeAway, MatchStatus, MvpVote, MVP_SKIP_ID, Ava
 import { format, getISOWeek, getISOWeekYear } from 'date-fns';
 import { cn } from '../lib/utils';
 import { Timestamp } from 'firebase/firestore';
-import { setWinner, matchWinner, needsThirdSet, computeTeamScore } from '../lib/results';
+import { matchWinner, needsThirdSet, computeTeamScore } from '../lib/results';
+import { pairCandidateId } from '../lib/mvp';
 
 const MyAvailabilityRow: React.FC<{ year: string; league: string; matchId: string; myPlayers: Player[] }> = ({ year, league, matchId, myPlayers }) => {
   const [statusMap, setStatusMap] = useState<Record<string, AvailabilityStatus | undefined>>({});
@@ -204,40 +205,54 @@ const LineupPicker: React.FC<{
   );
 };
 
+// One row per singles player, or one row holding both partners of a
+// doubles pair. The W/L and MVP slots are fixed-width and always rendered
+// once a match is completed, so they line up across rows.
 const LineupRow: React.FC<{
-  player: Player;
+  players: Player[];
   slot?: number;
+  showResult: boolean;
+  result?: 'win' | 'loss';
   canVote: boolean;
   isMyVote: boolean;
   hasVoted: boolean;
   onVote: () => void;
-  result?: 'win' | 'loss';
-}> = ({ player, slot, canVote, isMyVote, hasVoted, onVote, result }) => {
+}> = ({ players, slot, showResult, result, canVote, isMyVote, hasVoted, onVote }) => {
+  // A pair row is padded to the height of two single rows so the doubles
+  // column (3 pairs) matches the singles column (6 players).
+  const rowPadding = players.length > 1 ? "py-3" : "py-1.5";
   const content = (
     <>
-      <span className="flex items-center gap-1.5 min-w-0">
-        {slot !== undefined && (
-          <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[9px] font-black flex-shrink-0">{slot}</span>
-        )}
-        <span className="font-bold text-slate-700 truncate">{player.name}</span>
-        <span className="text-slate-400 text-[10px] flex-shrink-0">#{player.rank}</span>
+      <span className="flex flex-col gap-2 min-w-0 flex-1">
+        {players.map((player, i) => (
+          <span key={player.id} className="flex items-center gap-1.5 min-w-0 min-h-6">
+            {slot !== undefined && i === 0 && (
+              <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[9px] font-black flex-shrink-0">{slot}</span>
+            )}
+            <span className="font-bold text-slate-700 truncate">{player.name}</span>
+            <span className="text-slate-400 text-[10px] flex-shrink-0">#{player.rank}</span>
+          </span>
+        ))}
       </span>
-      {result && (
+      {showResult && (
         <span className={cn(
-          "text-[9px] font-black uppercase tracking-wider flex-shrink-0",
+          "w-3 text-center text-[9px] font-black uppercase flex-shrink-0",
           result === 'win' ? "text-emerald-600" : "text-red-500"
         )}>
-          {result === 'win' ? 'W' : 'L'}
+          {result === 'win' ? 'W' : result === 'loss' ? 'L' : ''}
         </span>
       )}
-      {isMyVote && (
-        <span className="flex items-center gap-1 text-[9px] font-black text-emerald-600 uppercase flex-shrink-0">
-          <Trophy className="w-3 h-3" /> MVP
-        </span>
-      )}
-      {canVote && !hasVoted && (
-        <span className="px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider flex-shrink-0 transition-colors bg-emerald-50 text-emerald-600 border border-emerald-200 group-hover:bg-emerald-600 group-hover:text-white group-hover:border-emerald-600">
-          MVP
+      {canVote && (
+        <span className="w-12 flex justify-end flex-shrink-0">
+          {isMyVote ? (
+            <span className="flex items-center gap-1 text-[9px] font-black text-emerald-600 uppercase">
+              <Trophy className="w-3 h-3" /> MVP
+            </span>
+          ) : !hasVoted ? (
+            <span className="px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors bg-emerald-50 text-emerald-600 border border-emerald-200 group-hover:bg-emerald-600 group-hover:text-white group-hover:border-emerald-600">
+              MVP
+            </span>
+          ) : null}
         </span>
       )}
     </>
@@ -245,7 +260,7 @@ const LineupRow: React.FC<{
 
   if (canVote && !hasVoted) {
     return (
-      <button onClick={onVote} className="group flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs bg-slate-50 border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/50 transition-all text-left">
+      <button onClick={onVote} className={cn("group flex items-center gap-2 px-2.5 rounded-lg text-xs bg-slate-50 border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/50 transition-all text-left", rowPadding)}>
         {content}
       </button>
     );
@@ -253,7 +268,8 @@ const LineupRow: React.FC<{
 
   return (
     <div className={cn(
-      "flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs border",
+      "flex items-center gap-2 px-2.5 rounded-lg text-xs border",
+      rowPadding,
       isMyVote ? "bg-emerald-50 border-emerald-200" : result === 'win' ? "bg-emerald-50/50 border-emerald-100" : result === 'loss' ? "bg-red-50/50 border-red-100" : "bg-slate-50 border-slate-100"
     )}>
       {content}
@@ -584,10 +600,9 @@ const MatchRoster: React.FC<{ year: string; league: string; match: Match; player
     setView('lineup');
   };
 
-  const winnerFor = (playerId: string): 'win' | 'loss' | undefined => {
-    const singlesResult = (match.singlesResults || []).find(r => r.playerId === playerId);
-    const doublesResult = (match.doublesResults || []).find(r => r.playerIds.includes(playerId));
-    const w = singlesResult ? matchWinner(singlesResult.sets) : doublesResult ? matchWinner(doublesResult.sets) : undefined;
+  const isCompleted = match.status === 'Completed';
+  const toResult = (sets?: SetScore[]): 'win' | 'loss' | undefined => {
+    const w = sets ? matchWinner(sets) : undefined;
     return w === undefined ? undefined : w === 'us' ? 'win' : 'loss';
   };
 
@@ -613,6 +628,16 @@ const MatchRoster: React.FC<{ year: string; league: string; match: Match; player
     .map(playerById)
     .filter((p): p is Player => !!p)
     .sort((a, b) => a.rank - b.rank);
+
+  // Pairs are known once doubles results are recorded; until then the
+  // doubles pool is shown player by player.
+  const doublesPairs = (match.doublesResults || []).map(r => ({
+    ids: r.playerIds,
+    sets: r.sets,
+    players: r.playerIds.map(playerById).filter((p): p is Player => !!p),
+  }));
+  const pairedIds = new Set(doublesPairs.flatMap(p => p.ids));
+  const unpairedDoubles = doublesSorted.filter(p => !pairedIds.has(p.id));
 
   if (!hasLineup || view === 'availability') {
     return (
@@ -695,7 +720,7 @@ const MatchRoster: React.FC<{ year: string; league: string; match: Match; player
           <button onClick={() => setView('availability')} className="text-emerald-600 hover:underline normal-case font-bold">Availability</button>
         </div>
       </div>
-      <div className={cn("grid gap-4", doublesSorted.length > 0 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1")}>
+      <div className={cn("grid gap-4", doublesSorted.length > 0 && !compact ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1")}>
         <div className="flex flex-col gap-1.5">
           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Singles</span>
           <div className="flex flex-col gap-1.5">
@@ -703,13 +728,14 @@ const MatchRoster: React.FC<{ year: string; league: string; match: Match; player
             {singlesSorted.map((p, i) => (
               <LineupRow
                 key={p.id}
-                player={p}
+                players={[p]}
                 slot={i + 1}
+                showResult={isCompleted}
+                result={toResult((match.singlesResults || []).find(r => r.playerId === p.id)?.sets)}
                 canVote={canVote}
                 isMyVote={myVote?.playerId === p.id}
                 hasVoted={!!myVote}
                 onVote={() => handleVote(p.id)}
-                result={match.status === 'Completed' ? winnerFor(p.id) : undefined}
               />
             ))}
           </div>
@@ -718,15 +744,30 @@ const MatchRoster: React.FC<{ year: string; league: string; match: Match; player
           <div className="flex flex-col gap-1.5">
             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Doubles</span>
             <div className="flex flex-col gap-1.5">
-              {doublesSorted.map(p => (
+              {doublesPairs.map(pair => {
+                const candidateId = pairCandidateId(pair.ids);
+                return (
+                  <LineupRow
+                    key={candidateId}
+                    players={pair.players}
+                    showResult={isCompleted}
+                    result={toResult(pair.sets)}
+                    canVote={canVote}
+                    isMyVote={myVote?.playerId === candidateId}
+                    hasVoted={!!myVote}
+                    onVote={() => handleVote(candidateId)}
+                  />
+                );
+              })}
+              {unpairedDoubles.map(p => (
                 <LineupRow
                   key={p.id}
-                  player={p}
+                  players={[p]}
+                  showResult={isCompleted}
                   canVote={canVote}
                   isMyVote={myVote?.playerId === p.id}
                   hasVoted={!!myVote}
                   onVote={() => handleVote(p.id)}
-                  result={match.status === 'Completed' ? winnerFor(p.id) : undefined}
                 />
               ))}
             </div>
