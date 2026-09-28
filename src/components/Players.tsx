@@ -5,7 +5,20 @@ import { tennisService } from '../services/tennisService';
 import { Player, Match, MvpVote, MVP_SKIP_ID } from '../types';
 import { format } from 'date-fns';
 import { cn } from '../lib/utils';
-import { tallyIndividualRecords, individualResultsFor } from '../lib/results';
+import { tallyIndividualRecords, individualResultsFor, emptyRecord, winRate, WinLoss } from '../lib/results';
+
+const StatTile: React.FC<{ value: React.ReactNode; label: string; sub?: string }> = ({ value, label, sub }) => (
+  <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-center">
+    <p className="text-xl font-bold text-slate-800">{value}</p>
+    <p className="text-[9px] uppercase font-bold text-slate-400 tracking-widest">{label}</p>
+    {sub && <p className="text-[9px] text-slate-400 mt-0.5">{sub}</p>}
+  </div>
+);
+
+const winRateSub = (wl: WinLoss) => {
+  const rate = winRate(wl);
+  return rate === undefined ? 'No results' : `${Math.round(rate * 100)}% won`;
+};
 
 export const Players: React.FC = () => {
   const { year, league, user, isAdmin } = useAppContext();
@@ -13,6 +26,7 @@ export const Players: React.FC = () => {
   const [matches, setMatches] = useState<Match[]>([]);
   const [matchVotesMap, setMatchVotesMap] = useState<Record<string, MvpVote[]>>({});
   const [expandedPlayerId, setExpandedPlayerId] = useState<string | null>(null);
+  const [showAllRecent, setShowAllRecent] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
   const [newRank, setNewRank] = useState('1');
@@ -81,9 +95,14 @@ export const Players: React.FC = () => {
     const singlesCount = played.filter(m => (m.lineupSingles || []).includes(playerId)).length;
     const doublesCount = played.filter(m => (m.lineupDoubles || []).includes(playerId)).length;
     const mvpWins = completedMatches.filter(m => matchMvpWinnerId(m.id) === playerId).length;
-    const { wins, losses } = individualRecords[playerId] || { wins: 0, losses: 0 };
-    const recent = [...played].sort((a, b) => b.date.toMillis() - a.date.toMillis()).slice(0, 3);
-    return { played: played.length, singlesCount, doublesCount, mvpWins, wins, losses, recent };
+    const record = individualRecords[playerId] || emptyRecord();
+    const recent = [...played].sort((a, b) => b.date.toMillis() - a.date.toMillis());
+    return { played: played.length, singlesCount, doublesCount, mvpWins, record, recent };
+  };
+
+  const toggleExpanded = (playerId: string) => {
+    setExpandedPlayerId(expandedPlayerId === playerId ? null : playerId);
+    setShowAllRecent(false);
   };
 
   const handleAdd = async (e: React.FormEvent) => {
@@ -274,7 +293,7 @@ export const Players: React.FC = () => {
                 </div>
               ) : (
               <div
-                onClick={() => setExpandedPlayerId(isExpanded ? null : player.id)}
+                onClick={() => toggleExpanded(player.id)}
                 className="p-4 flex items-center gap-6 cursor-pointer"
               >
                 <div className="h-14 w-14 rounded-2xl bg-slate-100 flex flex-col items-center justify-center text-slate-400 group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors flex-shrink-0">
@@ -326,29 +345,18 @@ export const Players: React.FC = () => {
               )}
               {isExpanded && stats && (
                 <div className="px-4 pb-4 pt-1 border-t border-slate-100 flex flex-col gap-4">
-                  <div className="grid grid-cols-2 gap-3 pt-3">
-                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-center">
-                      <p className="text-xl font-bold text-slate-800">{stats.played}</p>
-                      <p className="text-[9px] uppercase font-bold text-slate-400 tracking-widest">Played</p>
-                      <p className="text-[9px] text-slate-400 mt-0.5">{stats.singlesCount}S &middot; {stats.doublesCount}D</p>
-                    </div>
-                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-center">
-                      <p className="text-xl font-bold text-slate-800">{stats.wins}-{stats.losses}</p>
-                      <p className="text-[9px] uppercase font-bold text-slate-400 tracking-widest">W-L Ratio</p>
-                    </div>
-                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-center">
-                      <p className="text-xl font-bold text-slate-800">{stats.mvpWins}</p>
-                      <p className="text-[9px] uppercase font-bold text-slate-400 tracking-widest">MVP Wins</p>
-                    </div>
-                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-center">
-                      <p className="text-xl font-bold text-slate-800">{player.rank}</p>
-                      <p className="text-[9px] uppercase font-bold text-slate-400 tracking-widest">Club Rank</p>
-                    </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3">
+                    <StatTile value={stats.played} label="Played" sub={`${stats.singlesCount}S · ${stats.doublesCount}D`} />
+                    <StatTile value={`${stats.record.singles.wins}-${stats.record.singles.losses}`} label="Singles W-L" sub={winRateSub(stats.record.singles)} />
+                    <StatTile value={`${stats.record.doubles.wins}-${stats.record.doubles.losses}`} label="Doubles W-L" sub={winRateSub(stats.record.doubles)} />
+                    <StatTile value={stats.record.clutches} label="Clutches" sub="Won after losing set 1" />
+                    <StatTile value={stats.mvpWins} label="MVP Wins" />
+                    <StatTile value={player.rank} label="Club Rank" />
                   </div>
                   {stats.recent.length > 0 && (
                     <div className="flex flex-col gap-1.5">
                       <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Recent Matches</span>
-                      {stats.recent.map(m => {
+                      {(showAllRecent ? stats.recent : stats.recent.slice(0, 3)).map(m => {
                         const results = individualResultsFor(m, player.id);
                         const wasMvp = matchMvpWinnerId(m.id) === player.id;
                         return (
@@ -375,6 +383,15 @@ export const Players: React.FC = () => {
                           </div>
                         );
                       })}
+                      {stats.recent.length > 3 && (
+                        <button
+                          onClick={() => setShowAllRecent(v => !v)}
+                          className="flex items-center justify-center gap-1 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-emerald-600 transition-colors"
+                        >
+                          {showAllRecent ? 'Show less' : `Show all ${stats.recent.length}`}
+                          <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", showAllRecent && "rotate-180")} />
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

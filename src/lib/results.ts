@@ -40,25 +40,50 @@ export function individualResultsFor(match: Match, playerId: string): { kind: 's
   return results;
 }
 
+export interface WinLoss {
+  wins: number;
+  losses: number;
+}
+
+export interface IndividualRecord {
+  singles: WinLoss;
+  doubles: WinLoss;
+  // Matches won after losing the first set.
+  clutches: number;
+}
+
+export const emptyRecord = (): IndividualRecord => ({
+  singles: { wins: 0, losses: 0 },
+  doubles: { wins: 0, losses: 0 },
+  clutches: 0,
+});
+
 // Individual W-L per player across all given matches; a doubles result
 // counts for both partners.
-export function tallyIndividualRecords(matches: Match[]): Record<string, { wins: number; losses: number }> {
-  const records: Record<string, { wins: number; losses: number }> = {};
-  const add = (playerIds: string[], sets: SetScore[]) => {
+export function tallyIndividualRecords(matches: Match[]): Record<string, IndividualRecord> {
+  const records: Record<string, IndividualRecord> = {};
+  const add = (kind: 'singles' | 'doubles', playerIds: string[], sets: SetScore[]) => {
     const w = matchWinner(sets);
     if (!w) return;
+    const clutch = w === 'us' && !!sets[0] && setWinner(sets[0]) === 'them';
     playerIds.forEach(id => {
-      const rec = records[id] || (records[id] = { wins: 0, losses: 0 });
-      if (w === 'us') rec.wins++;
-      else rec.losses++;
+      const rec = records[id] || (records[id] = emptyRecord());
+      if (w === 'us') rec[kind].wins++;
+      else rec[kind].losses++;
+      if (clutch) rec.clutches++;
     });
   };
   matches.forEach(m => {
-    (m.singlesResults || []).forEach(r => add([r.playerId], r.sets));
-    (m.doublesResults || []).forEach(r => add(r.playerIds, r.sets));
+    (m.singlesResults || []).forEach(r => add('singles', [r.playerId], r.sets));
+    (m.doublesResults || []).forEach(r => add('doubles', r.playerIds, r.sets));
   });
   return records;
 }
+
+export const winRate = (wl: WinLoss) => {
+  const total = wl.wins + wl.losses;
+  return total === 0 ? undefined : wl.wins / total;
+};
 
 // The team score always sums to 9 (6 singles + 3 doubles); this counts
 // individual match wins recorded so far, so it stays accurate as results
