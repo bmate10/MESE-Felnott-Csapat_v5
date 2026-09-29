@@ -824,7 +824,12 @@ const MatchCard: React.FC<{
         )}
 
         {match.status === 'Completed' ? (
-          <div className="mt-8 flex items-center gap-8 bg-ink-50/50 p-6 rounded-2xl border border-ink-100">
+          <div className={cn(
+            "mt-8 flex items-center gap-8 p-6 rounded-2xl border",
+            !match.teamScore && !match.opponentScore
+              ? "bg-ink-50/50 border-ink-100"
+              : isWin ? "bg-win-50 border-win-200" : "bg-red-50 border-red-200"
+          )}>
             <div className="flex-1 flex flex-col items-center">
               <span className="text-[10px] font-black uppercase text-ink-400 tracking-widest mb-4">M.E.S.E</span>
               {isAdmin ? (
@@ -842,7 +847,7 @@ const MatchCard: React.FC<{
                 <span className="w-16 h-16 text-4xl font-bold flex items-center justify-center text-ink-800 bg-white rounded-xl border border-ink-150 shadow-sm">{match.teamScore}</span>
               )}
             </div>
-            <div className="text-3xl font-light text-ink-200 self-end mb-4">:</div>
+            <div className="text-3xl font-light text-ink-300 self-end mb-4">:</div>
             <div className="flex-1 flex flex-col items-center">
               <span className="text-[10px] font-black uppercase text-ink-400 tracking-widest mb-4">{match.opponent.split(' ')[0]}</span>
               <span className="w-16 h-16 text-4xl font-bold flex items-center justify-center text-ink-800 bg-white rounded-xl border border-ink-150 shadow-sm">{match.opponentScore}</span>

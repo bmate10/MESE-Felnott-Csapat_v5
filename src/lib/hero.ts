@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
+import clayCourt from '../assets/clay-court.svg';
 
-// Dark-green backdrop shared by the Dashboard hero card and the login
-// screen. The tint keeps white text readable over the photo.
+// Top-down clay court under a dark terracotta tint so white text stays readable.
 export const heroBackground: CSSProperties = {
-  backgroundImage: 'linear-gradient(135deg, rgb(18 52 36 / 0.92), rgb(22 63 43 / 0.78) 55%, rgb(11 32 22 / 0.95))',
+  backgroundImage: `linear-gradient(135deg, rgb(60 21 10 / 0.72), rgb(60 21 10 / 0.30) 55%, rgb(60 21 10 / 0.62)), url("${clayCourt}")`,
 };

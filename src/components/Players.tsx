@@ -8,13 +8,22 @@ import { format } from 'date-fns';
 import { cn } from '../lib/utils';
 import { tallyIndividualRecords, individualResultsFor, emptyRecord, winRate, WinLoss } from '../lib/results';
 
-const StatTile: React.FC<{ value: React.ReactNode; label: string; sub?: string }> = ({ value, label, sub }) => (
-  <div className="bg-ink-50 border border-ink-100 rounded-xl p-3 text-center">
-    <p className="text-xl font-bold text-ink-800">{value}</p>
-    <p className="text-[9px] uppercase font-bold text-ink-400 tracking-widest">{label}</p>
-    {sub && <p className="text-[9px] text-ink-400 mt-0.5">{sub}</p>}
-  </div>
-);
+const statTones = {
+  brand: { tile: 'bg-brand-50 border-brand-100', value: 'text-brand-700', label: 'text-brand-500', sub: 'text-brand-400' },
+  win: { tile: 'bg-win-50 border-win-200', value: 'text-win-700', label: 'text-win-600', sub: 'text-win-600/70' },
+  clay: { tile: 'bg-clay-50 border-clay-200', value: 'text-clay-700', label: 'text-clay-600', sub: 'text-clay-600/70' },
+};
+
+const StatTile: React.FC<{ value: React.ReactNode; label: string; sub?: string; tone: keyof typeof statTones }> = ({ value, label, sub, tone }) => {
+  const t = statTones[tone];
+  return (
+    <div className={cn("border rounded-xl p-3 text-center", t.tile)}>
+      <p className={cn("text-xl font-bold", t.value)}>{value}</p>
+      <p className={cn("text-[9px] uppercase font-bold tracking-widest", t.label)}>{label}</p>
+      {sub && <p className={cn("text-[9px] mt-0.5", t.sub)}>{sub}</p>}
+    </div>
+  );
+};
 
 const winRateSub = (wl: WinLoss) => {
   const rate = winRate(wl);
@@ -335,12 +344,12 @@ export const Players: React.FC = () => {
               {isExpanded && stats && (
                 <div className="px-4 pb-4 pt-1 border-t border-ink-100 flex flex-col gap-4">
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3">
-                    <StatTile value={stats.played} label="Played" sub={`${stats.singlesCount}S · ${stats.doublesCount}D`} />
-                    <StatTile value={`${stats.record.singles.wins}-${stats.record.singles.losses}`} label="Singles W-L" sub={winRateSub(stats.record.singles)} />
-                    <StatTile value={`${stats.record.doubles.wins}-${stats.record.doubles.losses}`} label="Doubles W-L" sub={winRateSub(stats.record.doubles)} />
-                    <StatTile value={stats.record.clutches} label="Clutches" sub="Won after losing set 1" />
-                    <StatTile value={stats.mvpWins} label="MVP Wins" />
-                    <StatTile value={player.rank} label="Club Rank" />
+                    <StatTile value={stats.played} label="Played" tone="brand" sub={`${stats.singlesCount}S · ${stats.doublesCount}D`} />
+                    <StatTile value={`${stats.record.singles.wins}-${stats.record.singles.losses}`} label="Singles W-L" tone="win" sub={winRateSub(stats.record.singles)} />
+                    <StatTile value={`${stats.record.doubles.wins}-${stats.record.doubles.losses}`} label="Doubles W-L" tone="win" sub={winRateSub(stats.record.doubles)} />
+                    <StatTile value={stats.record.clutches} label="Clutches" tone="clay" sub="Won after losing set 1" />
+                    <StatTile value={stats.mvpWins} label="MVP Wins" tone="clay" />
+                    <StatTile value={player.rank} label="Club Rank" tone="brand" />
                   </div>
                   {stats.recent.length > 0 && (
                     <div className="flex flex-col gap-1.5">

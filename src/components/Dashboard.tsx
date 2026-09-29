@@ -30,7 +30,7 @@ const LeaderTile: React.FC<{ title: string; entries: LeaderEntry[]; emptyText: s
             <div className="flex items-center gap-3">
               <span className={cn(
                 "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0",
-                i === 0 ? "bg-clay-600 text-white" : "bg-brand-100 text-brand-700"
+                i === 0 ? "bg-clay-600 text-white" : i === 1 ? "bg-brand-600 text-white" : "bg-brand-100 text-brand-700"
               )}>
                 {i + 1}
               </span>
@@ -140,13 +140,13 @@ export const Dashboard: React.FC = () => {
     .map(e => ({ ...e, rate: individualWinRate(e.rec.singles) }))
     .filter((e): e is typeof e & { rate: number } => e.rate !== undefined)
     .sort((a, b) => b.rate - a.rate || b.rec.singles.wins - a.rec.singles.wins || a.rec.singles.losses - b.rec.singles.losses)
-    .slice(0, 2)
+    .slice(0, 3)
     .map(e => ({ player: e.player, value: `${e.rec.singles.wins}-${e.rec.singles.losses}`, label: `${Math.round(e.rate * 100)}% Won` }));
 
   const mostDoublesWins: LeaderEntry[] = records
     .filter(e => e.rec.doubles.wins > 0)
     .sort((a, b) => b.rec.doubles.wins - a.rec.doubles.wins || a.rec.doubles.losses - b.rec.doubles.losses)
-    .slice(0, 2)
+    .slice(0, 3)
     .map(e => ({ player: e.player, value: String(e.rec.doubles.wins), label: `Wins · ${e.rec.doubles.wins}-${e.rec.doubles.losses}` }));
 
   const hasVotedAllMvp =!user || completedMatches.length === 0 || completedMatches.every(m =>
@@ -289,10 +289,10 @@ export const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Upcoming Match */}
         <div className="lg:col-span-8 space-y-6">
-          <section className="bg-brand-600 bg-cover bg-center text-white rounded-3xl shadow-lg shadow-brand-900/20 overflow-hidden" style={heroBackground}>
+          <section className="bg-clay-700 bg-cover bg-center text-white rounded-3xl shadow-lg shadow-clay-900/25 overflow-hidden" style={heroBackground}>
             <div className="px-6 py-4 border-b border-white/10 flex justify-between items-center">
               <h2 className="font-bold text-white">Upcoming</h2>
-              <button onClick={() => navigate('/matches')} className="text-xs text-clay-300 font-bold hover:text-white transition-colors">Full Schedule →</button>
+              <button onClick={() => navigate('/matches')} className="text-xs text-white/85 font-bold hover:text-white transition-colors">Full Schedule →</button>
             </div>
 
             {upcomingMatches.length > 0 ? (
@@ -306,7 +306,7 @@ export const Dashboard: React.FC = () => {
                       </div>
                       <div className="flex-1">
                         {index === 0 && (
-                          <span className="inline-flex mb-1.5 px-2.5 py-0.5 rounded-full bg-clay-600 text-[10px] font-bold text-white">Next match</span>
+                          <span className="inline-flex mb-1.5 px-2.5 py-0.5 rounded-full bg-white text-[10px] font-bold text-clay-700">Next match</span>
                         )}
                         <p className="font-extrabold text-white text-xl tracking-tight">{match.opponent}</p>
                         <p className="text-xs text-white/70 font-medium">
@@ -315,7 +315,7 @@ export const Dashboard: React.FC = () => {
                       </div>
                       <div className="flex flex-col items-end gap-2 mt-4 sm:mt-0">
                         <div className="flex items-center gap-2 text-white/80 text-xs bg-white/10 px-3 py-1.5 rounded-lg border border-white/15">
-                          <MapPin className="w-4 h-4 text-clay-300" />
+                          <MapPin className="w-4 h-4 text-clay-100" />
                           <span className="font-medium truncate max-w-[150px]">{match.location}</span>
                         </div>
                       </div>
@@ -335,7 +335,7 @@ export const Dashboard: React.FC = () => {
                                     className={cn(
                                       "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all",
                                       status === s
-                                        ? (s === 'Yes' ? "bg-win-500 text-white shadow-sm" : s === 'No' ? "bg-white text-ink-900" : "bg-clay-600 text-white")
+                                        ? (s === 'Yes' ? "bg-win-500 text-white shadow-sm" : s === 'No' ? "bg-white text-ink-900" : "bg-ink-900 text-white")
                                         : "bg-white/10 border border-white/20 text-white/70 hover:bg-white/20 hover:text-white"
                                     )}
                                   >
