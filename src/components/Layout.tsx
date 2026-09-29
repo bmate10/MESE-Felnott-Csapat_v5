@@ -5,6 +5,7 @@ import { cn } from '../lib/utils';
 import { useAppContext } from '../context/AppContext';
 import meseLogo from '../assets/mese-logo.jpg';
 import { Toaster } from './Toaster';
+import { heroBackground } from '../lib/hero';
 
 export const Layout: React.FC = () => {
   const location = useLocation();
@@ -31,6 +32,13 @@ export const Layout: React.FC = () => {
     }
   };
 
+  const bottomNav = [
+    { to: '/', label: 'Dashboard', Icon: Home },
+    { to: '/matches', label: 'Matches', Icon: Calendar },
+    { to: '/players', label: 'Players', Icon: Users },
+    { to: '/settings', label: 'Settings', Icon: Settings },
+  ];
+
   const topTabs = [
     { name: 'Dashboard', path: '/' },
     { name: 'Matches', path: '/matches' },
@@ -39,34 +47,34 @@ export const Layout: React.FC = () => {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
-        <div className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-600 rounded-full animate-spin"></div>
-        <p className="text-sm font-semibold text-slate-500 mt-4 uppercase tracking-widest">Verifying Session...</p>
+      <div className="min-h-screen bg-ink-50 flex flex-col items-center justify-center p-6">
+        <div className="w-12 h-12 border-4 border-brand-500/20 border-t-brand-600 rounded-full animate-spin"></div>
+        <p className="text-sm font-semibold text-ink-500 mt-4 uppercase tracking-widest">Verifying Session...</p>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 flex flex-col items-center justify-center">
-        <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-3xl border border-slate-200 shadow-xl text-center">
+      <div className="min-h-screen bg-brand-600 bg-cover bg-center py-12 px-4 sm:px-6 lg:px-8 flex flex-col items-center justify-center" style={heroBackground}>
+        <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-3xl shadow-2xl shadow-brand-950/40 text-center">
           <div className="flex flex-col items-center">
             <img src={meseLogo} alt="M.E.S.E" className="w-24 h-24 object-contain mb-2" />
-            <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">M.E.S.E</h1>
-            <p className="text-xs uppercase font-bold text-slate-400 tracking-widest mt-1">Felnőtt Bajnokság Portal</p>
+            <h1 className="text-3xl font-extrabold text-ink-800 tracking-tight">M.E.S.E</h1>
+            <p className="text-xs uppercase font-bold text-ink-400 tracking-widest mt-1">Felnőtt Bajnokság Portal</p>
           </div>
 
-          <div className="bg-slate-50 border border-slate-100 rounded-2xl p-5 text-left text-sm space-y-3">
-            <p className="text-slate-600 leading-relaxed">
+          <div className="bg-ink-50 border border-ink-100 rounded-2xl p-5 text-left text-sm space-y-3">
+            <p className="text-ink-600 leading-relaxed">
               Az adatbázis megtekintéséhez és kezeléséhez bejelentkezés szükséges.
             </p>
-            <div className="text-xs space-y-2 text-slate-400 font-medium">
+            <div className="text-xs space-y-2 text-ink-400 font-medium">
               <div className="flex items-start gap-2">
-                <span className="w-1.5 h-1.5 mt-1.5 bg-emerald-500 rounded-full flex-shrink-0"></span>
-                <span><strong>Adminisztrátorok</strong> (<code className="bg-slate-100 px-1 py-0.5 rounded text-slate-600">bmate10@gmail.com</code>): Teljes hozzáférés az adatok feltöltéséhez, törléséhez és módosításához.</span>
+                <span className="w-1.5 h-1.5 mt-1.5 bg-brand-500 rounded-full flex-shrink-0"></span>
+                <span><strong>Adminisztrátorok</strong> (<code className="bg-ink-100 px-1 py-0.5 rounded text-ink-600">bmate10@gmail.com</code>): Teljes hozzáférés az adatok feltöltéséhez, törléséhez és módosításához.</span>
               </div>
               <div className="flex items-start gap-2">
-                <span className="w-1.5 h-1.5 mt-1.5 bg-emerald-400 rounded-full flex-shrink-0"></span>
+                <span className="w-1.5 h-1.5 mt-1.5 bg-brand-400 rounded-full flex-shrink-0"></span>
                 <span><strong>Klubtagok</strong>: Csapat játéknapok megtekintése és saját hozzáférés jelölése.</span>
               </div>
             </div>
@@ -75,7 +83,7 @@ export const Layout: React.FC = () => {
           <button
             onClick={handleLogin}
             disabled={isLoggingIn}
-            className="w-full flex items-center justify-center gap-3 bg-slate-900 text-white rounded-xl px-5 py-4 font-bold text-sm shadow-lg hover:bg-slate-800 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-3 bg-brand-600 text-white rounded-xl px-5 py-4 font-bold text-sm shadow-lg hover:bg-brand-700 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
           >
             <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
               <path
@@ -106,16 +114,16 @@ export const Layout: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen pb-24 bg-slate-50">
+    <div className="min-h-screen pb-28 bg-background">
       <Toaster />
       {/* Top Navbar */}
-      <header className="bg-white px-6 pt-4 flex flex-col border-b border-slate-200">
+      <header className="bg-white px-6 pt-4 flex flex-col border-b border-outline-variant">
         <div className="flex items-center justify-between pb-3">
           <div className="flex items-center gap-3">
             <img src={meseLogo} alt="M.E.S.E" className="w-10 h-10 object-contain flex-shrink-0" />
             <div>
-              <span className="font-bold text-lg tracking-tight text-slate-800 block leading-none">M.E.S.E</span>
-              <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">bajnokság</span>
+              <span className="font-bold text-lg tracking-tight text-ink-800 block leading-none">M.E.S.E</span>
+              <span className="text-[9px] font-black uppercase text-ink-400 tracking-wider">bajnokság</span>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -125,26 +133,26 @@ export const Layout: React.FC = () => {
                   referrerPolicy="no-referrer"
                   src={user.photoURL} 
                   alt={user.displayName || 'User'} 
-                  className="w-7 h-7 rounded-full border border-slate-200"
+                  className="w-7 h-7 rounded-full border border-ink-200"
                 />
               ) : (
-                <div className="w-7 h-7 bg-emerald-100 text-emerald-800 font-bold rounded-full flex items-center justify-center text-xs">
+                <div className="w-7 h-7 bg-brand-100 text-brand-800 font-bold rounded-full flex items-center justify-center text-xs">
                   {user.displayName?.substring(0, 2).toUpperCase() || user.email?.substring(0, 2).toUpperCase()}
                 </div>
               )}
               <div className="hidden sm:flex flex-col text-left">
-                <span className="text-xs font-bold text-slate-700 leading-none">{user.displayName || 'Tag'}</span>
+                <span className="text-xs font-bold text-ink-700 leading-none">{user.displayName || 'Tag'}</span>
                 {isAdmin ? (
-                  <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest leading-none mt-0.5">Admin</span>
+                  <span className="text-[9px] font-bold text-brand-600 uppercase tracking-widest leading-none mt-0.5">Admin</span>
                 ) : (
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-0.5">Tag</span>
+                  <span className="text-[9px] font-bold text-ink-400 uppercase tracking-widest leading-none mt-0.5">Tag</span>
                 )}
               </div>
             </div>
             <button 
               onClick={logout}
               title="Kijelentkezés"
-              className="p-2 rounded-lg text-slate-400 hover:bg-slate-50 hover:text-red-500 transition-colors cursor-pointer"
+              className="p-2 rounded-lg text-ink-400 hover:bg-ink-50 hover:text-red-500 transition-colors cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
             </button>
@@ -160,8 +168,8 @@ export const Layout: React.FC = () => {
               className={({ isActive }) => cn(
                 "px-3 py-2 text-sm font-medium border-b-2 transition-all",
                 isActive 
-                  ? "border-emerald-600 text-emerald-600 font-bold" 
-                  : "border-transparent text-slate-500 hover:text-slate-800"
+                  ? "border-brand-600 text-brand-600 font-bold" 
+                  : "border-transparent text-ink-500 hover:text-ink-800"
               )}
             >
               {tab.name}
@@ -175,65 +183,22 @@ export const Layout: React.FC = () => {
         <Outlet />
       </main>
 
-      {/* Bottom Navigation */}
-      <footer className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 px-1 pb-6 pt-3 flex justify-around items-center">
-        <NavLink 
-          to="/" 
-          className={({ isActive }) => cn(
-            "flex flex-col items-center gap-1 transition-colors",
-            isActive ? "text-emerald-600 font-bold" : "text-slate-400 hover:text-slate-800"
-          )}
-        >
-          {({ isActive }) => (
-            <>
-              <Home className={cn("w-5 h-5", isActive ? "fill-current" : "")} />
-              <span className="text-[9px] font-bold uppercase tracking-tight whitespace-nowrap">Dashboard</span>
-            </>
-          )}
-        </NavLink>
-        <NavLink 
-          to="/matches" 
-          className={({ isActive }) => cn(
-            "flex flex-col items-center gap-1 transition-colors",
-            isActive ? "text-emerald-600 font-bold" : "text-slate-400 hover:text-slate-800"
-          )}
-        >
-          {({ isActive }) => (
-            <>
-              <Calendar className={cn("w-5 h-5", isActive ? "fill-current" : "")} />
-              <span className="text-[9px] font-bold uppercase tracking-tight whitespace-nowrap">Matches</span>
-            </>
-          )}
-        </NavLink>
-        <NavLink
-          to="/players"
-          className={({ isActive }) => cn(
-            "flex flex-col items-center gap-1 transition-colors",
-            isActive ? "text-emerald-600 font-bold" : "text-slate-400 hover:text-slate-800"
-          )}
-        >
-          {({ isActive }) => (
-            <>
-              <Users className={cn("w-5 h-5", isActive ? "fill-current" : "")} />
-              <span className="text-[9px] font-bold uppercase tracking-tight whitespace-nowrap">Players</span>
-            </>
-          )}
-        </NavLink>
-        <NavLink 
-          to="/settings" 
-          className={({ isActive }) => cn(
-            "flex flex-col items-center gap-1 transition-colors",
-            isActive ? "text-emerald-600 font-bold" : "text-slate-400 hover:text-slate-800"
-          )}
-        >
-          {({ isActive }) => (
-            <>
-              <Settings className={cn("w-5 h-5", isActive ? "fill-current" : "")} />
-              <span className="text-[9px] font-bold uppercase tracking-tight whitespace-nowrap">Settings</span>
-            </>
-          )}
-        </NavLink>
-      </footer>
+      {/* Bottom Navigation: floating dark-green pill, active item in clay */}
+      <nav className="fixed bottom-4 inset-x-4 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:w-[28rem] z-50 bg-brand-600 rounded-[1.75rem] shadow-xl shadow-brand-900/30 p-1.5 flex gap-1">
+        {bottomNav.map(({ to, label, Icon }) => (
+          <NavLink
+            key={to}
+            to={to}
+            className={({ isActive }) => cn(
+              "flex-1 flex flex-col items-center gap-1 py-2 rounded-2xl transition-colors",
+              isActive ? "bg-clay-600 text-white" : "text-white/60 hover:text-white"
+            )}
+          >
+            <Icon className="w-5 h-5" />
+            <span className="text-[9px] font-bold uppercase tracking-tight whitespace-nowrap">{label}</span>
+          </NavLink>
+        ))}
+      </nav>
     </div>
   );
 };

@@ -10,6 +10,7 @@ import { Timestamp } from 'firebase/firestore';
 import { cn } from '../lib/utils';
 import { tallyIndividualRecords, winRate as individualWinRate, IndividualRecord } from '../lib/results';
 import { candidatePlayerIds, matchMvpWinners } from '../lib/mvp';
+import { heroBackground } from '../lib/hero';
 
 interface LeaderEntry {
   player: Player;
@@ -18,29 +19,29 @@ interface LeaderEntry {
 }
 
 const LeaderTile: React.FC<{ title: string; entries: LeaderEntry[]; emptyText: string }> = ({ title, entries, emptyText }) => (
-  <div className="bg-linear-to-br from-white to-emerald-50 rounded-2xl shadow-sm border border-emerald-100 p-6">
-    <h2 className="font-bold text-slate-800 mb-6">{title}</h2>
+  <div className="bg-linear-to-br from-white to-brand-50 rounded-3xl shadow-sm border border-brand-100 p-6">
+    <h2 className="font-bold text-ink-800 mb-6">{title}</h2>
     <div className="flex flex-col gap-2">
       {entries.length === 0 ? (
-        <p className="text-sm text-slate-400 text-center py-6">{emptyText}</p>
+        <p className="text-sm text-ink-400 text-center py-6">{emptyText}</p>
       ) : (
         entries.map((e, i) => (
-          <div key={e.player.id} className="flex items-center justify-between p-3 rounded-xl bg-white/70 border border-emerald-100">
+          <div key={e.player.id} className="flex items-center justify-between p-3 rounded-xl bg-white/70 border border-brand-100">
             <div className="flex items-center gap-3">
               <span className={cn(
                 "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0",
-                i === 0 ? "bg-emerald-500 text-white" : "bg-emerald-100 text-emerald-700"
+                i === 0 ? "bg-clay-600 text-white" : "bg-brand-100 text-brand-700"
               )}>
                 {i + 1}
               </span>
               <div className="flex flex-col">
-                <span className="text-sm font-bold text-slate-800">{e.player.name}</span>
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Rank #{e.player.rank}</span>
+                <span className="text-sm font-bold text-ink-800">{e.player.name}</span>
+                <span className="text-[10px] text-ink-400 font-bold uppercase tracking-wider">Rank #{e.player.rank}</span>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-lg font-bold text-emerald-600">{e.value}</p>
-              <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">{e.label}</p>
+              <p className="text-lg font-bold text-brand-600">{e.value}</p>
+              <p className="text-[9px] uppercase font-bold text-ink-400 tracking-wider">{e.label}</p>
             </div>
           </div>
         ))
@@ -240,31 +241,31 @@ export const Dashboard: React.FC = () => {
   const COLORS = ['#10b981', '#f1f5f9'];
 
   return (
-    <div className="p-6 flex flex-col gap-8 pb-32 bg-slate-50">
+    <div className="p-6 flex flex-col gap-8 pb-32">
       {/* Key Stats Grid */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="bg-emerald-600 p-6 rounded-2xl shadow-sm flex flex-col justify-between text-white min-h-[120px]">
-          <span className="text-[10px] font-bold text-emerald-200 uppercase tracking-wider">Season Win Rate</span>
+        <div className="bg-brand-600 p-6 rounded-3xl shadow-sm flex flex-col justify-between text-white min-h-[120px]">
+          <span className="text-[10px] font-bold text-brand-200 uppercase tracking-wider">Season Win Rate</span>
           <div className="flex items-baseline gap-2">
             <span className="text-4xl font-light">{winRate}%</span>
-            <span className="text-emerald-200 text-sm font-bold">{wins}W / {losses}L</span>
+            <span className="text-brand-200 text-sm font-bold">{wins}W / {losses}L</span>
           </div>
         </div>
 
         <div className="tonal-card p-6 flex flex-col justify-between min-h-[120px]">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">MVP Leader</span>
+          <span className="text-[10px] font-bold text-ink-400 uppercase tracking-wider">MVP Leader</span>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
-              <Trophy className="w-5 h-5 text-emerald-600" />
+            <div className="w-10 h-10 rounded-full border border-clay-200 bg-clay-50 flex items-center justify-center">
+              <Trophy className="w-5 h-5 text-clay-600" />
             </div>
-            <span className="text-sm font-bold text-slate-800">{leaderPlayer?.name || 'No Votes Yet'}</span>
+            <span className="text-sm font-bold text-ink-800">{leaderPlayer?.name || 'No Votes Yet'}</span>
           </div>
         </div>
 
         <div className="tonal-card p-6 flex flex-col justify-between min-h-[120px]">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Availability</span>
+          <span className="text-[10px] font-bold text-ink-400 uppercase tracking-wider">Availability</span>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-sm font-bold text-slate-800">
+            <span className="text-sm font-bold text-ink-800">
               {myPlayers.length === 0
                 ? 'Not Linked'
                 : missingAvailabilityCount === 0
@@ -274,12 +275,12 @@ export const Dashboard: React.FC = () => {
             {myPlayers.length === 0 || missingAvailabilityCount > 0 ? (
               <button
                 onClick={() => navigate('/matches')}
-                className="text-[10px] bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded hover:bg-amber-200 transition-colors"
+                className="text-[10px] bg-clay-100 text-clay-700 font-bold px-2 py-0.5 rounded hover:bg-clay-200 transition-colors"
               >
                 {myPlayers.length === 0 ? 'Link' : 'Update'}
               </button>
             ) : (
-              <span className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded">Done</span>
+              <span className="text-[10px] bg-win-100 text-win-700 font-bold px-2 py-0.5 rounded">Done</span>
             )}
           </div>
         </div>
@@ -288,41 +289,44 @@ export const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Upcoming Match */}
         <div className="lg:col-span-8 space-y-6">
-          <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-              <h2 className="font-bold text-slate-800">Upcoming</h2>
-              <button onClick={() => navigate('/matches')} className="text-xs text-emerald-600 font-bold hover:underline">Full Schedule</button>
+          <section className="bg-brand-600 bg-cover bg-center text-white rounded-3xl shadow-lg shadow-brand-900/20 overflow-hidden" style={heroBackground}>
+            <div className="px-6 py-4 border-b border-white/10 flex justify-between items-center">
+              <h2 className="font-bold text-white">Upcoming</h2>
+              <button onClick={() => navigate('/matches')} className="text-xs text-clay-300 font-bold hover:text-white transition-colors">Full Schedule →</button>
             </div>
 
             {upcomingMatches.length > 0 ? (
-              <div className="divide-y divide-slate-100">
-                {upcomingMatches.map(match => (
-                  <div key={match.id} className="px-6 py-4 hover:bg-slate-50 transition-colors">
+              <div className="divide-y divide-white/10">
+                {upcomingMatches.map((match, index) => (
+                  <div key={match.id} className="px-6 py-5">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center">
-                      <div className="w-14 h-14 bg-slate-100 rounded-xl flex flex-col items-center justify-center mb-4 sm:mb-0 sm:mr-4 text-slate-500 flex-shrink-0">
-                        <span className="text-[10px] uppercase font-bold">{format(match.date.toDate(), 'MMM')}</span>
+                      <div className="w-14 h-14 bg-white/10 border border-white/15 rounded-xl flex flex-col items-center justify-center mb-4 sm:mb-0 sm:mr-4 text-white flex-shrink-0">
+                        <span className="text-[10px] uppercase font-bold text-white/70">{format(match.date.toDate(), 'MMM')}</span>
                         <span className="text-lg font-bold leading-none">{format(match.date.toDate(), 'd')}</span>
                       </div>
                       <div className="flex-1">
-                        <p className="font-bold text-slate-800 text-lg">{match.opponent}</p>
-                        <p className="text-xs text-slate-500 font-medium">
+                        {index === 0 && (
+                          <span className="inline-flex mb-1.5 px-2.5 py-0.5 rounded-full bg-clay-600 text-[10px] font-bold text-white">Next match</span>
+                        )}
+                        <p className="font-extrabold text-white text-xl tracking-tight">{match.opponent}</p>
+                        <p className="text-xs text-white/70 font-medium">
                           {match.homeAway} • {format(match.date.toDate(), 'EEEE, h:mm a')}
                         </p>
                       </div>
                       <div className="flex flex-col items-end gap-2 mt-4 sm:mt-0">
-                        <div className="flex items-center gap-2 text-slate-400 text-xs bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
-                          <MapPin className="w-4 h-4" />
+                        <div className="flex items-center gap-2 text-white/80 text-xs bg-white/10 px-3 py-1.5 rounded-lg border border-white/15">
+                          <MapPin className="w-4 h-4 text-clay-300" />
                           <span className="font-medium truncate max-w-[150px]">{match.location}</span>
                         </div>
                       </div>
                     </div>
                     {myPlayers.length > 0 && (
-                      <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col gap-2">
+                      <div className="mt-4 p-3 rounded-2xl bg-white/10 border border-white/10 flex flex-col gap-2">
                         {myPlayers.map(player => {
                           const status = myAvailabilityMap[`${player.id}:${match.id}`];
                           return (
                             <div key={player.id} className="flex items-center justify-between gap-3">
-                              <span className="text-xs font-bold text-slate-700 truncate">{player.name}</span>
+                              <span className="text-xs font-bold text-white/90 truncate">{player.name}</span>
                               <div className="flex gap-1.5 flex-shrink-0">
                                 {(['Yes', 'No', 'If Needed'] as AvailabilityStatus[]).map(s => (
                                   <button
@@ -331,8 +335,8 @@ export const Dashboard: React.FC = () => {
                                     className={cn(
                                       "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all",
                                       status === s
-                                        ? (s === 'Yes' ? "bg-emerald-600 text-white shadow-sm" : s === 'No' ? "bg-slate-800 text-white" : "bg-amber-500 text-white")
-                                        : "bg-white border border-slate-200 text-slate-400 hover:border-emerald-200 hover:text-emerald-500"
+                                        ? (s === 'Yes' ? "bg-win-500 text-white shadow-sm" : s === 'No' ? "bg-white text-ink-900" : "bg-clay-600 text-white")
+                                        : "bg-white/10 border border-white/20 text-white/70 hover:bg-white/20 hover:text-white"
                                     )}
                                   >
                                     {s === 'If Needed' ? 'Sub' : s}
@@ -348,49 +352,49 @@ export const Dashboard: React.FC = () => {
                 ))}
               </div>
             ) : (
-              <div className="p-12 text-center text-slate-400 font-medium italic">No upcoming matches scheduled</div>
+              <div className="p-12 text-center text-white/60 font-medium italic">No upcoming matches scheduled</div>
             )}
           </section>
 
           {/* Recent Results */}
-          <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-              <h2 className="font-bold text-slate-800">Recent Results</h2>
-              <button onClick={() => navigate('/matches')} className="text-xs text-emerald-600 font-bold hover:underline">View All</button>
+          <section className="bg-white rounded-3xl shadow-sm border border-outline-variant overflow-hidden">
+            <div className="px-6 py-4 border-b border-ink-100 flex justify-between items-center">
+              <h2 className="font-bold text-ink-800">Recent Results</h2>
+              <button onClick={() => navigate('/matches')} className="text-xs text-clay-600 font-bold hover:text-clay-700 transition-colors">View All →</button>
             </div>
             
             <div className="flex flex-col">
               {recentResults.map(match => (
-                <div key={match.id} className="p-6 flex items-center justify-between hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0">
+                <div key={match.id} className="p-6 flex items-center justify-between hover:bg-ink-50 transition-colors border-b border-ink-50 last:border-0">
                   <div className="grid grid-cols-[2.5rem_1.25rem_2.5rem] sm:grid-cols-[3rem_1.5rem_3rem_1px_9rem] items-center gap-x-3 sm:gap-x-6">
                     <div className="text-center">
-                      <p className={cn("text-2xl font-bold", (match.teamScore || 0) > (match.opponentScore || 0) ? "text-slate-800" : "text-slate-400")}>{match.teamScore}</p>
-                      <p className="text-[10px] uppercase font-bold text-slate-400 tracking-tight truncate">M.E.S.E</p>
+                      <p className={cn("text-2xl font-bold", (match.teamScore || 0) > (match.opponentScore || 0) ? "text-ink-800" : "text-ink-400")}>{match.teamScore}</p>
+                      <p className="text-[10px] uppercase font-bold text-ink-400 tracking-tight truncate">M.E.S.E</p>
                     </div>
-                    <div className="text-center text-slate-200 font-light text-2xl">:</div>
+                    <div className="text-center text-ink-200 font-light text-2xl">:</div>
                     <div className="text-center">
-                      <p className={cn("text-2xl font-bold", (match.opponentScore || 0) > (match.teamScore || 0) ? "text-slate-800" : "text-slate-400")}>{match.opponentScore}</p>
-                      <p className="text-[10px] uppercase font-bold text-slate-400 tracking-tight truncate">{match.opponent.split(' ')[0]}</p>
+                      <p className={cn("text-2xl font-bold", (match.opponentScore || 0) > (match.teamScore || 0) ? "text-ink-800" : "text-ink-400")}>{match.opponentScore}</p>
+                      <p className="text-[10px] uppercase font-bold text-ink-400 tracking-tight truncate">{match.opponent.split(' ')[0]}</p>
                     </div>
-                    <div className="hidden sm:block h-10 w-px bg-slate-100 justify-self-center"></div>
+                    <div className="hidden sm:block h-10 w-px bg-ink-100 justify-self-center"></div>
                     <div className="hidden sm:block">
-                      <p className="text-xs font-bold text-slate-700 whitespace-nowrap">{format(match.date.toDate(), 'MMMM d, yyyy')}</p>
+                      <p className="text-xs font-bold text-ink-700 whitespace-nowrap">{format(match.date.toDate(), 'MMMM d, yyyy')}</p>
                     </div>
                   </div>
 
                   <div className="text-right flex flex-col items-end gap-1">
                     <span className={cn(
                       "text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded",
-                      (match.teamScore || 0) > (match.opponentScore || 0) ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-500"
+                      (match.teamScore || 0) > (match.opponentScore || 0) ? "bg-win-100 text-win-700" : "bg-red-100 text-red-500"
                     )}>
                       {(match.teamScore || 0) > (match.opponentScore || 0) ? 'WIN' : 'LOSS'}
                     </span>
-                    <button onClick={() => navigate('/matches?tab=results')} className="text-[10px] text-slate-400 hover:text-emerald-600 font-bold transition-colors">DETAILS</button>
+                    <button onClick={() => navigate('/matches?tab=results')} className="text-[10px] text-ink-400 hover:text-clay-600 font-bold transition-colors">DETAILS</button>
                   </div>
                 </div>
               ))}
               {recentResults.length === 0 && (
-                <div className="p-12 text-center text-slate-400 italic">No recent match data</div>
+                <div className="p-12 text-center text-ink-400 italic">No recent match data</div>
               )}
             </div>
           </section>
@@ -398,15 +402,15 @@ export const Dashboard: React.FC = () => {
 
         {/* Right Column / Sidebar */}
         <div className="lg:col-span-4 space-y-6">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+          <div className="bg-white rounded-3xl shadow-sm border border-outline-variant p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="font-bold text-slate-800">Season MVP</h2>
+              <h2 className="font-bold text-ink-800">Season MVP</h2>
               {hasVotedAllMvp ? (
-                <span className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded">Voted — All Done</span>
+                <span className="text-[10px] bg-win-100 text-win-700 font-bold px-2 py-0.5 rounded">Voted — All Done</span>
               ) : (
                 <button
                   onClick={() => navigate('/matches?tab=results')}
-                  className="text-[10px] bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded hover:bg-amber-200 transition-colors"
+                  className="text-[10px] bg-clay-100 text-clay-700 font-bold px-2 py-0.5 rounded hover:bg-clay-200 transition-colors"
                 >
                   Vote for MVP
                 </button>
@@ -414,31 +418,31 @@ export const Dashboard: React.FC = () => {
             </div>
             <div className="flex flex-col gap-2">
               {topMvpPlayers.length === 0 ? (
-                <p className="text-sm text-slate-400 text-center py-6">Cast the first vote after a match</p>
+                <p className="text-sm text-ink-400 text-center py-6">Cast the first vote after a match</p>
               ) : (
                 topMvpPlayers.map((p, i) => (
                   <div
                     key={p.id}
                     className={cn(
                       "flex items-center justify-between p-3 rounded-xl border",
-                      i === 0 ? "bg-emerald-50 border-emerald-200" : "bg-slate-50 border-slate-100"
+                      i === 0 ? "bg-clay-50 border-clay-200" : "bg-ink-50 border-ink-100"
                     )}
                   >
                     <div className="flex items-center gap-3">
                       <span className={cn(
                         "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0",
-                        i === 0 ? "bg-emerald-500 text-white" : "bg-slate-200 text-slate-500"
+                        i === 0 ? "bg-clay-600 text-white" : "bg-ink-200 text-ink-500"
                       )}>
                         {i + 1}
                       </span>
                       <div className="flex flex-col">
-                        <span className={cn("text-sm font-bold", i === 0 ? "text-emerald-700" : "text-slate-800")}>{p.name}</span>
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Rank #{p.rank}</span>
+                        <span className={cn("text-sm font-bold", i === 0 ? "text-clay-800" : "text-ink-800")}>{p.name}</span>
+                        <span className="text-[10px] text-ink-400 font-bold uppercase tracking-wider">Rank #{p.rank}</span>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className={cn("text-lg font-bold", i === 0 ? "text-emerald-600" : "text-slate-800")}>{matchWinnerCounts[p.id] || 0}</p>
-                      <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">MVP Wins</p>
+                      <p className={cn("text-lg font-bold", i === 0 ? "text-clay-600" : "text-ink-800")}>{matchWinnerCounts[p.id] || 0}</p>
+                      <p className="text-[9px] uppercase font-bold text-ink-400 tracking-wider">MVP Wins</p>
                     </div>
                   </div>
                 ))
@@ -451,13 +455,13 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {matches.length === 0 && (
-          <div className="col-span-12 p-12 bg-white rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center gap-6">
-            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center">
-              <Shield className="w-8 h-8 text-slate-300" />
+          <div className="col-span-12 p-12 bg-white rounded-2xl border-2 border-dashed border-ink-200 flex flex-col items-center gap-6">
+            <div className="w-16 h-16 bg-ink-50 rounded-full flex items-center justify-center">
+              <Shield className="w-8 h-8 text-ink-300" />
             </div>
             <div className="text-center">
-              <h3 className="text-lg font-bold text-slate-800 mb-1">Begin Your Season</h3>
-              <p className="text-sm text-slate-400 max-w-xs mx-auto">
+              <h3 className="text-lg font-bold text-ink-800 mb-1">Begin Your Season</h3>
+              <p className="text-sm text-ink-400 max-w-xs mx-auto">
                 {isAdmin 
                   ? "Initialize your team dashboard with baseline data to start tracking performance." 
                   : `Welcome to the selection portal! No match records have been scheduled for ${year} ${league} yet.`}
@@ -486,13 +490,13 @@ export const Dashboard: React.FC = () => {
                 <button 
                   onClick={handleSeed}
                   disabled={isSeeding}
-                  className="bg-emerald-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50"
+                  className="bg-brand-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-brand-600/20 hover:bg-brand-700 active:scale-95 transition-all disabled:opacity-50"
                 >
                   {isSeeding ? 'Seeding Baseline Data...' : 'Seed Example Data'}
                 </button>
               </>
             ) : (
-              <div className="text-xs font-semibold uppercase tracking-widest text-emerald-600 bg-emerald-50 px-5 py-2.5 rounded-xl border border-emerald-100">
+              <div className="text-xs font-semibold uppercase tracking-widest text-brand-600 bg-brand-50 px-5 py-2.5 rounded-xl border border-brand-100">
                 Awaiting Administration Setup
               </div>
             )}

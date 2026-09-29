@@ -1,32 +1,77 @@
-@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&family=Archivo+Narrow:wght@400..700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400..800&display=swap');
 @import "tailwindcss";
 
+/* M.E.S.E design system. Each key colour sits at the 600 step so the
+   common "-600" usages land on it exactly. */
 @theme {
-  --font-sans: "Lexend", ui-sans-serif, system-ui, sans-serif;
-  --font-archivo: "Archivo Narrow", sans-serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
 
-  --color-surface: #ffffff;
-  --color-on-surface: #1e293b;
-  --color-on-surface-variant: #64748b;
-  --color-primary: #059669;
-  --color-primary-container: #ecfdf5;
-  --color-on-primary-container: #065f46;
-  --color-secondary: #10b981;
-  --color-on-secondary: #ffffff;
-  --color-secondary-container: #d1fae5;
-  --color-background: #f8fafc;
-  --color-outline-variant: #e2e8f0;
+  /* Primary: deep forest green #163F2B */
+  --color-brand-50: #eef5f0;
+  --color-brand-100: #d8e8dd;
+  --color-brand-200: #b3d1bd;
+  --color-brand-300: #86b396;
+  --color-brand-400: #5a906d;
+  --color-brand-500: #336f4a;
+  --color-brand-600: #163f2b;
+  --color-brand-700: #123424;
+  --color-brand-800: #0e2a1d;
+  --color-brand-900: #0b2016;
+  --color-brand-950: #06140d;
+
+  /* Secondary: clay orange #CF5729 */
+  --color-clay-50: #fdf3ee;
+  --color-clay-100: #fbe3d8;
+  --color-clay-200: #f6c4ae;
+  --color-clay-300: #efa07f;
+  --color-clay-400: #e47b52;
+  --color-clay-500: #d9673a;
+  --color-clay-600: #cf5729;
+  --color-clay-700: #ac4520;
+  --color-clay-800: #8a381c;
+  --color-clay-900: #6f2f19;
+  --color-clay-950: #3c150a;
+
+  /* Tertiary: win / success green #2E7D52 */
+  --color-win-50: #edf7f1;
+  --color-win-100: #d3eddd;
+  --color-win-200: #a9dbbd;
+  --color-win-300: #77c497;
+  --color-win-400: #4da774;
+  --color-win-500: #368c5e;
+  --color-win-600: #2e7d52;
+  --color-win-700: #256543;
+  --color-win-800: #1f5037;
+  --color-win-900: #1a422e;
+  --color-win-950: #0c2518;
+
+  /* Neutral: green-tinted greys, #13231A at 900 */
+  --color-ink-50: #f4f7f4;
+  --color-ink-100: #e8eee9;
+  --color-ink-150: #dde6df;
+  --color-ink-200: #d3ddd5;
+  --color-ink-300: #b5c3b8;
+  --color-ink-400: #8a9c8e;
+  --color-ink-500: #66786a;
+  --color-ink-600: #4d5e51;
+  --color-ink-700: #3a4a3e;
+  --color-ink-800: #26352a;
+  --color-ink-900: #13231a;
+  --color-ink-950: #0a140e;
+
+  --color-background: #f2f5ef;
+  --color-outline-variant: #e3eae4;
 }
 
 @layer base {
   body {
-    @apply bg-background text-on-surface font-sans antialiased;
+    @apply bg-background text-ink-900 font-sans antialiased;
   }
 }
 
 .tonal-card {
-  @apply bg-white rounded-2xl border border-outline-variant;
-  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  @apply bg-white rounded-3xl border border-outline-variant;
+  box-shadow: 0 1px 2px 0 rgb(19 35 26 / 0.04), 0 4px 16px -4px rgb(19 35 26 / 0.08);
 }
 
 .material-symbols-outlined {

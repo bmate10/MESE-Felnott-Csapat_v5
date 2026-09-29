@@ -86,21 +86,21 @@ export const Settings: React.FC = () => {
   };
 
   return (
-    <div className="p-6 flex flex-col gap-6 pb-32 bg-slate-50">
+    <div className="p-6 flex flex-col gap-6 pb-32">
       <div>
-        <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Settings</h2>
-        <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">{league} &middot; {year}</p>
+        <h2 className="text-2xl font-bold text-ink-800 tracking-tight">Settings</h2>
+        <p className="text-xs text-ink-400 font-bold uppercase tracking-widest mt-1">{league} &middot; {year}</p>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col gap-3">
-        <h3 className="font-bold text-slate-800">Export Season Results</h3>
-        <p className="text-sm text-slate-500">
+      <div className="bg-white rounded-3xl shadow-sm border border-outline-variant p-6 flex flex-col gap-3">
+        <h3 className="font-bold text-ink-800">Export Season Results</h3>
+        <p className="text-sm text-ink-500">
           Download a CSV of completed matches for {league} &middot; {year} (date, opponent, score, result).
         </p>
         <button
           onClick={exportCsv}
           disabled={completedMatches.length === 0}
-          className="self-start flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg disabled:opacity-50"
+          className="self-start flex items-center gap-2 bg-brand-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-brand-700 transition-all shadow-lg disabled:opacity-50"
         >
           <Download className="w-4 h-4" />
           {completedMatches.length === 0 ? 'No completed matches yet' : `Export ${completedMatches.length} Results`}
@@ -108,30 +108,30 @@ export const Settings: React.FC = () => {
       </div>
 
       {isOwner && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col gap-3">
-          <h3 className="font-bold text-slate-800">Admin Access</h3>
-          <p className="text-sm text-slate-500">
+        <div className="bg-white rounded-3xl shadow-sm border border-outline-variant p-6 flex flex-col gap-3">
+          <h3 className="font-bold text-ink-800">Admin Access</h3>
+          <p className="text-sm text-ink-500">
             Grant or revoke admin access for players linked to a Google account in {league} &middot; {year}.
           </p>
           {linkedPlayers.length === 0 ? (
-            <p className="text-sm text-slate-400">No linked player accounts yet.</p>
+            <p className="text-sm text-ink-400">No linked player accounts yet.</p>
           ) : (
-            <div className="flex flex-col divide-y divide-slate-100">
+            <div className="flex flex-col divide-y divide-ink-100">
               {linkedPlayers.map(p => {
                 const isSelf = p.uid === user?.uid;
                 const playerIsAdmin = !!p.uid && adminUids.has(p.uid);
                 return (
                   <div key={p.id} className="flex items-center justify-between py-3 gap-3">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="font-semibold text-slate-800 truncate">{p.name}</span>
+                      <span className="font-semibold text-ink-800 truncate">{p.name}</span>
                       {playerIsAdmin && (
-                        <span className="text-[10px] font-bold uppercase tracking-wide text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full shrink-0">
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full shrink-0">
                           Admin
                         </span>
                       )}
                     </div>
                     {isSelf ? (
-                      <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full shrink-0">
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-ink-400 bg-ink-100 px-2.5 py-1 rounded-full shrink-0">
                         You
                       </span>
                     ) : (
@@ -141,7 +141,7 @@ export const Settings: React.FC = () => {
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 transition-all disabled:opacity-50 ${
                           playerIsAdmin
                             ? 'bg-red-50 text-red-600 hover:bg-red-100'
-                            : 'bg-slate-900 text-white hover:bg-slate-800'
+                            : 'bg-brand-600 text-white hover:bg-brand-700'
                         }`}
                       >
                         {playerIsAdmin ? <ShieldOff className="w-3.5 h-3.5" /> : <ShieldCheck className="w-3.5 h-3.5" />}
@@ -157,8 +157,8 @@ export const Settings: React.FC = () => {
       )}
 
       {!isAdmin && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-          <p className="text-sm text-slate-400">More settings are available to admins.</p>
+        <div className="bg-white rounded-3xl shadow-sm border border-outline-variant p-6">
+          <p className="text-sm text-ink-400">More settings are available to admins.</p>
         </div>
       )}
     </div>
