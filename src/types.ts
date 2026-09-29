@@ -15,14 +15,20 @@ export interface SetScore {
   them: number;
 }
 
+// Set when a result is marked W/L without entering the score. A decisive
+// score in `sets` always takes precedence.
+export type Outcome = 'us' | 'them';
+
 export interface SinglesResult {
   playerId: string;
-  sets: SetScore[]; // 2 sets, or 3 if the first two were split
+  sets: SetScore[]; // 2 sets, or 3 if the first two were split; empty if only the outcome is known
+  outcome?: Outcome;
 }
 
 export interface DoublesResult {
   playerIds: [string, string]; // pairing is decided when the result is recorded, not at lineup time
-  sets: SetScore[];
+  sets: SetScore[]; // empty for a pairing with no result yet, or an outcome-only result
+  outcome?: Outcome;
 }
 
 export interface Match {

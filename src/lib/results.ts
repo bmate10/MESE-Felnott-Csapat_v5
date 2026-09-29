@@ -1,4 +1,4 @@
-import { SetScore, SinglesResult, DoublesResult, Match } from '../types';
+import { SetScore, SinglesResult, DoublesResult, Match, Outcome } from '../types';
 
 export function setWinner(set: SetScore): 'us' | 'them' | undefined {
   if (set.us === set.them) return undefined;
@@ -25,16 +25,21 @@ export function needsThirdSet(set1: SetScore, set2: SetScore): boolean {
   return !!w1 && !!w2 && w1 !== w2;
 }
 
+// A decisive score wins; otherwise fall back to an outcome marked without a score.
+export function resultWinner(r: { sets: SetScore[]; outcome?: Outcome }): Outcome | undefined {
+  return matchWinner(r.sets) ?? r.outcome;
+}
+
 // A player can have both a singles and a doubles result in the same
 // fixture, so these are listed per individual match, not per fixture.
 export function individualResultsFor(match: Match, playerId: string): { kind: 'singles' | 'doubles'; won: boolean }[] {
   const results: { kind: 'singles' | 'doubles'; won: boolean }[] = [];
   (match.singlesResults || []).forEach(r => {
-    const w = r.playerId === playerId ? matchWinner(r.sets) : undefined;
+    const w = r.playerId === playerId ? resultWinner(r) : undefined;
     if (w) results.push({ kind: 'singles', won: w === 'us' });
   });
   (match.doublesResults || []).forEach(r => {
-    const w = r.playerIds.includes(playerId) ? matchWinner(r.sets) : undefined;
+    const w = r.playerIds.includes(playerId) ? resultWinner(r) : undefined;
     if (w) results.push({ kind: 'doubles', won: w === 'us' });
   });
   return results;
@@ -62,10 +67,11 @@ export const emptyRecord = (): IndividualRecord => ({
 // counts for both partners.
 export function tallyIndividualRecords(matches: Match[]): Record<string, IndividualRecord> {
   const records: Record<string, IndividualRecord> = {};
-  const add = (kind: 'singles' | 'doubles', playerIds: string[], sets: SetScore[]) => {
-    const w = matchWinner(sets);
+  const add = (kind: 'singles' | 'doubles', playerIds: string[], r: { sets: SetScore[]; outcome?: Outcome }) => {
+    const w = resultWinner(r);
     if (!w) return;
-    const clutch = w === 'us' && !!sets[0] && setWinner(sets[0]) === 'them';
+    // Only knowable when the score was entered, not for a quick W/L.
+    const clutch = w === 'us' && !!r.sets[0] && setWinner(r.sets[0]) === 'them';
     playerIds.forEach(id => {
       const rec = records[id] || (records[id] = emptyRecord());
       if (w === 'us') rec[kind].wins++;
@@ -74,8 +80,8 @@ export function tallyIndividualRecords(matches: Match[]): Record<string, Individ
     });
   };
   matches.forEach(m => {
-    (m.singlesResults || []).forEach(r => add('singles', [r.playerId], r.sets));
-    (m.doublesResults || []).forEach(r => add('doubles', r.playerIds, r.sets));
+    (m.singlesResults || []).forEach(r => add('singles', [r.playerId], r));
+    (m.doublesResults || []).forEach(r => add('doubles', r.playerIds, r));
   });
   return records;
 }
@@ -89,6 +95,6 @@ export const winRate = (wl: WinLoss) => {
 // individual match wins recorded so far, so it stays accurate as results
 // are entered one at a time rather than requiring all 9 up front.
 export function computeTeamScore(singlesResults: SinglesResult[], doublesResults: DoublesResult[]) {
-  const wins = [...singlesResults, ...doublesResults].filter(r => matchWinner(r.sets) === 'us').length;
+  const wins = [...singlesResults, ...doublesResults].filter(r => resultWinner(r) === 'us').length;
   return { teamScore: wins, opponentScore: 9 - wins };
 }

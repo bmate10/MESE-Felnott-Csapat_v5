@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Calendar, MapPin, Trophy, Trash2, UserCheck, Copy, Check, X, Edit2 } from 'lucide-react';
+import { Plus, Calendar, MapPin, Trophy, Trash2, UserCheck, Copy, Check, X, ChevronDown } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { tennisService } from '../services/tennisService';
-import { Match, Player, Season, HomeAway, MatchStatus, MvpVote, MVP_SKIP_ID, AvailabilityEntry, AvailabilityStatus, SetScore, SinglesResult, DoublesResult } from '../types';
+import { Match, Player, Season, HomeAway, MatchStatus, MvpVote, MVP_SKIP_ID, AvailabilityEntry, AvailabilityStatus, SetScore, SinglesResult, DoublesResult, Outcome } from '../types';
 import { format, getISOWeek, getISOWeekYear } from 'date-fns';
 import { cn } from '../lib/utils';
 import { Timestamp } from 'firebase/firestore';
-import { matchWinner, needsThirdSet, computeTeamScore } from '../lib/results';
+import { matchWinner, needsThirdSet, computeTeamScore, resultWinner } from '../lib/results';
 import { pairCandidateId } from '../lib/mvp';
 
 const MyAvailabilityRow: React.FC<{ year: string; league: string; matchId: string; myPlayers: Player[] }> = ({ year, league, matchId, myPlayers }) => {
@@ -205,74 +205,77 @@ const LineupPicker: React.FC<{
   );
 };
 
-// One row per singles player, or one row holding both partners of a
-// doubles pair. The W/L and MVP slots are fixed-width and always rendered
-// once a match is completed, so they line up across rows.
+// One tile per singles player, or one tile holding both partners of a
+// doubles pair. The background shows the result; on a completed match the
+// tile opens to show or enter the score. The arrow and MVP slots are
+// fixed-width so they line up across tiles.
 const LineupRow: React.FC<{
   players: Player[];
   slot?: number;
-  showResult: boolean;
+  isCompleted: boolean;
   result?: 'win' | 'loss';
+  expandable: boolean;
+  expanded: boolean;
+  onToggle: () => void;
   canVote: boolean;
   isMyVote: boolean;
   hasVoted: boolean;
   onVote: () => void;
-}> = ({ players, slot, showResult, result, canVote, isMyVote, hasVoted, onVote }) => {
-  // A pair row is padded to the height of two single rows so the doubles
+  children?: React.ReactNode;
+}> = ({ players, slot, isCompleted, result, expandable, expanded, onToggle, canVote, isMyVote, hasVoted, onVote, children }) => {
+  // A pair tile is padded to the height of two single tiles so the doubles
   // column (3 pairs) matches the singles column (6 players).
   const rowPadding = players.length > 1 ? "py-3" : "py-1.5";
-  const content = (
-    <>
-      <span className="flex flex-col gap-2 min-w-0 flex-1">
-        {players.map((player, i) => (
-          <span key={player.id} className="flex items-center gap-1.5 min-w-0 min-h-6">
-            {slot !== undefined && i === 0 && (
-              <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[9px] font-black flex-shrink-0">{slot}</span>
-            )}
-            <span className="font-bold text-slate-700 truncate">{player.name}</span>
-            <span className="text-slate-400 text-[10px] flex-shrink-0">#{player.rank}</span>
-          </span>
-        ))}
-      </span>
-      {showResult && (
-        <span className={cn(
-          "w-3 text-center text-[9px] font-black uppercase flex-shrink-0",
-          result === 'win' ? "text-emerald-600" : "text-red-500"
-        )}>
-          {result === 'win' ? 'W' : result === 'loss' ? 'L' : ''}
-        </span>
-      )}
-      {canVote && (
-        <span className="w-12 flex justify-end flex-shrink-0">
-          {isMyVote ? (
-            <span className="flex items-center gap-1 text-[9px] font-black text-emerald-600 uppercase">
-              <Trophy className="w-3 h-3" /> MVP
-            </span>
-          ) : !hasVoted ? (
-            <span className="px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors bg-emerald-50 text-emerald-600 border border-emerald-200 group-hover:bg-emerald-600 group-hover:text-white group-hover:border-emerald-600">
-              MVP
-            </span>
-          ) : null}
-        </span>
-      )}
-    </>
-  );
-
-  if (canVote && !hasVoted) {
-    return (
-      <button onClick={onVote} className={cn("group flex items-center gap-2 px-2.5 rounded-lg text-xs bg-slate-50 border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/50 transition-all text-left", rowPadding)}>
-        {content}
-      </button>
-    );
-  }
-
   return (
     <div className={cn(
-      "flex items-center gap-2 px-2.5 rounded-lg text-xs border",
-      rowPadding,
-      isMyVote ? "bg-emerald-50 border-emerald-200" : result === 'win' ? "bg-emerald-50/50 border-emerald-100" : result === 'loss' ? "bg-red-50/50 border-red-100" : "bg-slate-50 border-slate-100"
+      "rounded-lg text-xs border transition-colors",
+      result === 'win' ? "bg-emerald-50 border-emerald-200" : result === 'loss' ? "bg-red-50 border-red-200" : "bg-slate-50 border-slate-100"
     )}>
-      {content}
+      <div
+        role={expandable ? 'button' : undefined}
+        tabIndex={expandable ? 0 : undefined}
+        aria-expanded={expandable ? expanded : undefined}
+        onClick={expandable ? onToggle : undefined}
+        onKeyDown={expandable ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } } : undefined}
+        className={cn("flex items-center gap-2 px-2.5", rowPadding, expandable && "cursor-pointer")}
+      >
+        <span className="flex flex-col gap-2 min-w-0 flex-1">
+          {players.map((player, i) => (
+            <span key={player.id} className="flex items-center gap-1.5 min-w-0 min-h-6">
+              {slot !== undefined && i === 0 && (
+                <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[9px] font-black flex-shrink-0">{slot}</span>
+              )}
+              <span className="font-bold text-slate-700 truncate">{player.name}</span>
+              <span className="text-slate-400 text-[10px] flex-shrink-0">#{player.rank}</span>
+            </span>
+          ))}
+        </span>
+        {isCompleted && (
+          <ChevronDown className={cn(
+            "w-3.5 h-3.5 flex-shrink-0 text-slate-400 transition-transform",
+            !expandable && "invisible",
+            expanded && "rotate-180"
+          )} />
+        )}
+        {canVote && (
+          <span className="w-12 flex justify-end flex-shrink-0">
+            {isMyVote ? (
+              <span className="flex items-center gap-1 text-[9px] font-black text-emerald-600 uppercase">
+                <Trophy className="w-3 h-3" /> MVP
+              </span>
+            ) : !hasVoted ? (
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); onVote(); }}
+                className="px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors bg-white text-emerald-600 border border-emerald-200 hover:bg-emerald-600 hover:text-white hover:border-emerald-600"
+              >
+                MVP
+              </button>
+            ) : null}
+          </span>
+        )}
+      </div>
+      {expanded && <div className="px-2.5 pb-2.5">{children}</div>}
     </div>
   );
 };
@@ -355,63 +358,64 @@ const SetScoreEditor: React.FC<{
   );
 };
 
-const ResultRow: React.FC<{
-  label: string;
-  sub?: string;
-  sets?: SetScore[];
+// Opens inside a lineup tile: the score (read-only for non-admins), and for
+// admins the score editor plus quick W/L buttons for when the score isn't known.
+const ResultDetails: React.FC<{
+  sets: SetScore[];
+  winner?: Outcome;
   isAdmin: boolean;
-  onSave: (sets: SetScore[]) => Promise<void>;
-  onRemove?: () => void;
-}> = ({ label, sub, sets, isAdmin, onSave, onRemove }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const winner = sets ? matchWinner(sets) : undefined;
+  onSaveScore: (sets: SetScore[]) => Promise<void>;
+  onMark: (outcome: Outcome) => Promise<void>;
+  onClear?: () => Promise<void>;
+  onUnpair?: () => Promise<void>;
+  onClose: () => void;
+}> = ({ sets, winner, isAdmin, onSaveScore, onMark, onClear, onUnpair, onClose }) => {
+  const hasScore = matchWinner(sets) !== undefined;
 
-  const handleSave = async (newSets: SetScore[]) => {
-    await onSave(newSets);
-    setIsEditing(false);
-  };
-
-  if (isEditing) {
+  if (!isAdmin) {
     return (
-      <div className="flex flex-col gap-2 p-3 rounded-xl bg-slate-50 border border-slate-100">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="font-bold text-slate-700 text-xs truncate">{label}</span>
-          {sub && <span className="text-slate-400 text-[10px] flex-shrink-0">{sub}</span>}
-        </div>
-        <SetScoreEditor initialSets={sets} onSave={handleSave} onCancel={() => setIsEditing(false)} />
+      <div className="pt-2 border-t border-slate-200/70 text-slate-500 font-medium">
+        {hasScore
+          ? sets.map((s, i) => <span key={i} className="mr-2">{s.us}-{s.them}</span>)
+          : winner
+            ? `Marked as a ${winner === 'us' ? 'win' : 'loss'}, no score entered`
+            : 'No score recorded'}
       </div>
     );
   }
 
+  const quickButton = (outcome: Outcome) => (
+    <button
+      type="button"
+      onClick={() => onMark(outcome)}
+      title={outcome === 'us' ? 'Mark as won' : 'Mark as lost'}
+      className={cn(
+        "w-7 h-7 rounded-lg text-[10px] font-black transition-all",
+        outcome === 'us'
+          ? winner === 'us' ? "bg-emerald-600 text-white" : "bg-white border border-emerald-200 text-emerald-600 hover:bg-emerald-50"
+          : winner === 'them' ? "bg-red-500 text-white" : "bg-white border border-red-200 text-red-500 hover:bg-red-50"
+      )}
+    >
+      {outcome === 'us' ? 'W' : 'L'}
+    </button>
+  );
+
   return (
-    <div className="flex items-center justify-between gap-2 p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs">
-      <div className="flex items-center gap-2 min-w-0">
-        <span className="font-bold text-slate-700 truncate">{label}</span>
-        {sub && <span className="text-slate-400 text-[10px] flex-shrink-0">{sub}</span>}
-      </div>
-      <div className="flex items-center gap-2 flex-shrink-0">
-        {sets && sets.length > 0 ? (
-          <>
-            <span className="text-slate-500 font-medium tracking-wide">
-              {sets.map((s, i) => <span key={i} className="ml-1.5 first:ml-0">{s.us}-{s.them}</span>)}
-            </span>
-            {winner && (
-              <span className={cn("px-1.5 py-0.5 rounded text-[9px] font-black uppercase", winner === 'us' ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-500")}>
-                {winner === 'us' ? 'Win' : 'Loss'}
-              </span>
-            )}
-          </>
-        ) : (
-          <span className="text-slate-300 italic">Not recorded</span>
-        )}
-        {isAdmin && (
-          <button onClick={() => setIsEditing(true)} title="Edit result" className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all">
-            <Edit2 className="w-3.5 h-3.5" />
+    <div className="flex flex-col gap-2 pt-2 border-t border-slate-200/70">
+      <SetScoreEditor key={JSON.stringify(sets)} initialSets={sets.length ? sets : undefined} onSave={onSaveScore} onCancel={onClose} />
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-1">No score?</span>
+        {quickButton('us')}
+        {quickButton('them')}
+        <span className="flex-1" />
+        {onClear && (
+          <button type="button" onClick={onClear} className="text-[10px] font-bold text-slate-400 hover:text-red-500 transition-colors">
+            Clear result
           </button>
         )}
-        {isAdmin && sets && sets.length > 0 && onRemove && (
-          <button onClick={onRemove} title="Remove result" className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all">
-            <X className="w-3.5 h-3.5" />
+        {onUnpair && (
+          <button type="button" onClick={onUnpair} className="text-[10px] font-bold text-slate-400 hover:text-red-500 transition-colors">
+            Unpair
           </button>
         )}
       </div>
@@ -421,7 +425,7 @@ const ResultRow: React.FC<{
 
 const AddDoublesPairing: React.FC<{
   candidates: Player[];
-  onAdd: (playerIds: [string, string], sets: SetScore[]) => Promise<void>;
+  onAdd: (playerIds: [string, string]) => Promise<void>;
 }> = ({ candidates, onAdd }) => {
   const [selected, setSelected] = useState<string[]>([]);
   const [isPicking, setIsPicking] = useState(false);
@@ -464,112 +468,21 @@ const AddDoublesPairing: React.FC<{
           </button>
         ))}
       </div>
-      {selected.length === 2 ? (
-        <SetScoreEditor
-          onSave={async (sets) => {
-            await onAdd([selected[0], selected[1]], sets);
+      <div className="flex justify-end gap-3">
+        <button onClick={() => { setIsPicking(false); setSelected([]); }} className="text-[10px] text-slate-400 hover:text-slate-600 font-bold">
+          Cancel
+        </button>
+        <button
+          onClick={async () => {
+            await onAdd([selected[0], selected[1]]);
             setSelected([]);
             setIsPicking(false);
           }}
-          onCancel={() => setSelected([])}
-        />
-      ) : (
-        <div className="flex justify-end">
-          <button onClick={() => { setIsPicking(false); setSelected([]); }} className="text-[10px] text-slate-400 hover:text-slate-600 font-bold">
-            Cancel
-          </button>
-        </div>
-      )}
-    </div>
-  );
-};
-
-const ResultsPanel: React.FC<{
-  year: string;
-  league: string;
-  match: Match;
-  players: Player[];
-  singlesPlayers: Player[];
-  doublesPlayers: Player[];
-  isAdmin: boolean;
-}> = ({ year, league, match, players, singlesPlayers, doublesPlayers, isAdmin }) => {
-  const singlesResults = match.singlesResults || [];
-  const doublesResults = match.doublesResults || [];
-  const nameOf = (id: string) => players.find(p => p.id === id)?.name || 'Unknown';
-
-  const save = async (newSingles: SinglesResult[], newDoubles: DoublesResult[]) => {
-    const { teamScore, opponentScore } = computeTeamScore(newSingles, newDoubles);
-    await tennisService.updateMatch(year, league, match.id, {
-      singlesResults: newSingles,
-      doublesResults: newDoubles,
-      teamScore,
-      opponentScore
-    });
-  };
-
-  const saveSingles = (playerId: string) => async (sets: SetScore[]) => {
-    const next = [...singlesResults.filter(r => r.playerId !== playerId), { playerId, sets }];
-    await save(next, doublesResults);
-  };
-
-  const removeSingles = (playerId: string) => () =>
-    save(singlesResults.filter(r => r.playerId !== playerId), doublesResults);
-
-  const saveDoublesPair = (index: number, playerIds: [string, string]) => async (sets: SetScore[]) => {
-    const next = [...doublesResults];
-    next[index] = { playerIds, sets };
-    await save(singlesResults, next);
-  };
-
-  const addDoublesPair = async (playerIds: [string, string], sets: SetScore[]) => {
-    await save(singlesResults, [...doublesResults, { playerIds, sets }]);
-  };
-
-  const removeDoublesPair = (index: number) => () =>
-    save(singlesResults, doublesResults.filter((_, i) => i !== index));
-
-  const pairedPlayerIds = new Set(doublesResults.flatMap(r => r.playerIds));
-  const pairingCandidates = doublesPlayers.filter(p => !pairedPlayerIds.has(p.id));
-
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1.5">
-        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Singles</span>
-        <div className="flex flex-col gap-1.5">
-          {singlesPlayers.length === 0 && <span className="text-xs text-slate-400 italic">No singles lineup recorded</span>}
-          {singlesPlayers.map(p => (
-            <ResultRow
-              key={p.id}
-              label={p.name}
-              sub={`#${p.rank}`}
-              sets={singlesResults.find(r => r.playerId === p.id)?.sets}
-              isAdmin={isAdmin}
-              onSave={saveSingles(p.id)}
-              onRemove={removeSingles(p.id)}
-            />
-          ))}
-        </div>
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Doubles</span>
-        <div className="flex flex-col gap-1.5">
-          {doublesResults.length === 0 && pairingCandidates.length < 2 && (
-            <span className="text-xs text-slate-400 italic">No doubles lineup recorded</span>
-          )}
-          {doublesResults.map((r, i) => (
-            <ResultRow
-              key={i}
-              label={r.playerIds.map(nameOf).join(' & ')}
-              sets={r.sets}
-              isAdmin={isAdmin}
-              onSave={saveDoublesPair(i, r.playerIds)}
-              onRemove={removeDoublesPair(i)}
-            />
-          ))}
-          {isAdmin && doublesResults.length < 3 && (
-            <AddDoublesPairing candidates={pairingCandidates} onAdd={addDoublesPair} />
-          )}
-        </div>
+          disabled={selected.length !== 2}
+          className="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-[10px] font-bold hover:bg-slate-800 transition-all disabled:opacity-40"
+        >
+          Pair
+        </button>
       </div>
     </div>
   );
@@ -577,9 +490,11 @@ const ResultsPanel: React.FC<{
 
 const MatchRoster: React.FC<{ year: string; league: string; match: Match; players: Player[]; isAdmin: boolean; userId?: string; compact?: boolean }> = ({ year, league, match, players, isAdmin, userId, compact }) => {
   const [entries, setEntries] = useState<AvailabilityEntry[]>([]);
-  const [view, setView] = useState<'lineup' | 'availability' | 'results'>('lineup');
+  const [view, setView] = useState<'lineup' | 'availability'>('lineup');
   const [mvpVotes, setMvpVotes] = useState<MvpVote[]>([]);
   const [copied, setCopied] = useState(false);
+  // Singles tiles are keyed by player id, pair tiles by their pair candidate id.
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
 
   useEffect(() => {
     return tennisService.subscribeAvailability(year, league, match.id, setEntries);
@@ -601,10 +516,39 @@ const MatchRoster: React.FC<{ year: string; league: string; match: Match; player
   };
 
   const isCompleted = match.status === 'Completed';
-  const toResult = (sets?: SetScore[]): 'win' | 'loss' | undefined => {
-    const w = sets ? matchWinner(sets) : undefined;
+  const singlesResults = match.singlesResults || [];
+  const doublesResults = match.doublesResults || [];
+  const toResult = (r?: { sets: SetScore[]; outcome?: Outcome }): 'win' | 'loss' | undefined => {
+    const w = r ? resultWinner(r) : undefined;
     return w === undefined ? undefined : w === 'us' ? 'win' : 'loss';
   };
+
+  const saveResults = async (newSingles: SinglesResult[], newDoubles: DoublesResult[]) => {
+    const { teamScore, opponentScore } = computeTeamScore(newSingles, newDoubles);
+    await tennisService.updateMatch(year, league, match.id, {
+      singlesResults: newSingles,
+      doublesResults: newDoubles,
+      teamScore,
+      opponentScore
+    });
+    setExpandedKey(null);
+  };
+
+  // A score always carries its outcome. A quick W/L keeps an existing score
+  // only if it agrees, otherwise drops it so the two can't contradict.
+  const scored = (sets: SetScore[]) => ({ sets, outcome: matchWinner(sets) as Outcome });
+  const marked = (existingSets: SetScore[], outcome: Outcome) => ({
+    sets: matchWinner(existingSets) === outcome ? existingSets : [],
+    outcome,
+  });
+
+  const upsertSingles = (playerId: string, result: { sets: SetScore[]; outcome: Outcome }) =>
+    saveResults([...singlesResults.filter(r => r.playerId !== playerId), { playerId, ...result }], doublesResults);
+  const replaceDoubles = (index: number, result: DoublesResult | null) =>
+    saveResults(singlesResults, result
+      ? doublesResults.map((r, i) => (i === index ? result : r))
+      : doublesResults.filter((_, i) => i !== index));
+  const toggleExpanded = (key: string) => setExpandedKey(prev => (prev === key ? null : key));
 
   const myVote = userId ? mvpVotes.find(v => v.voterId === userId) : undefined;
   const canVote = match.status === 'Completed' && !!userId;
@@ -629,14 +573,9 @@ const MatchRoster: React.FC<{ year: string; league: string; match: Match; player
     .filter((p): p is Player => !!p)
     .sort((a, b) => a.rank - b.rank);
 
-  // Pairs are known once doubles results are recorded; until then the
-  // doubles pool is shown player by player.
-  const doublesPairs = (match.doublesResults || []).map(r => ({
-    ids: r.playerIds,
-    sets: r.sets,
-    players: r.playerIds.map(playerById).filter((p): p is Player => !!p),
-  }));
-  const pairedIds = new Set(doublesPairs.flatMap(p => p.ids));
+  // Pairs are known once they're recorded as doubles results; until then
+  // the doubles pool is shown player by player.
+  const pairedIds = new Set(doublesResults.flatMap(r => r.playerIds));
   const unpairedDoubles = doublesSorted.filter(p => !pairedIds.has(p.id));
 
   if (!hasLineup || view === 'availability') {
@@ -652,26 +591,6 @@ const MatchRoster: React.FC<{ year: string; league: string; match: Match; player
             <button onClick={() => setView('lineup')} className="text-xs text-emerald-600 font-bold hover:underline">Lineup</button>
           </div>
         )}
-      </div>
-    );
-  }
-
-  if (view === 'results') {
-    return (
-      <div className="mt-8 flex flex-col gap-3">
-        <div className="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
-          <span>Results</span>
-          <button onClick={() => setView('lineup')} className="text-emerald-600 hover:underline normal-case font-bold">Lineup</button>
-        </div>
-        <ResultsPanel
-          year={year}
-          league={league}
-          match={match}
-          players={players}
-          singlesPlayers={singlesSorted}
-          doublesPlayers={doublesSorted}
-          isAdmin={isAdmin}
-        />
       </div>
     );
   }
@@ -714,9 +633,6 @@ const MatchRoster: React.FC<{ year: string; league: string; match: Match; player
             {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
             {copied ? 'Copied' : 'Copy'}
           </button>
-          {match.status === 'Completed' && (
-            <button onClick={() => setView('results')} className="text-emerald-600 hover:underline normal-case font-bold">Results</button>
-          )}
           <button onClick={() => setView('availability')} className="text-emerald-600 hover:underline normal-case font-bold">Availability</button>
         </div>
       </div>
@@ -725,51 +641,92 @@ const MatchRoster: React.FC<{ year: string; league: string; match: Match; player
           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Singles</span>
           <div className="flex flex-col gap-1.5">
             {singlesSorted.length === 0 && <span className="text-xs text-slate-400 italic">None selected</span>}
-            {singlesSorted.map((p, i) => (
-              <LineupRow
-                key={p.id}
-                players={[p]}
-                slot={i + 1}
-                showResult={isCompleted}
-                result={toResult((match.singlesResults || []).find(r => r.playerId === p.id)?.sets)}
-                canVote={canVote}
-                isMyVote={myVote?.playerId === p.id}
-                hasVoted={!!myVote}
-                onVote={() => handleVote(p.id)}
-              />
-            ))}
+            {singlesSorted.map((p, i) => {
+              const r = singlesResults.find(x => x.playerId === p.id);
+              const winner = r ? resultWinner(r) : undefined;
+              return (
+                <LineupRow
+                  key={p.id}
+                  players={[p]}
+                  slot={i + 1}
+                  isCompleted={isCompleted}
+                  result={toResult(r)}
+                  expandable={isCompleted && (isAdmin || !!winner)}
+                  expanded={expandedKey === p.id}
+                  onToggle={() => toggleExpanded(p.id)}
+                  canVote={canVote}
+                  isMyVote={myVote?.playerId === p.id}
+                  hasVoted={!!myVote}
+                  onVote={() => handleVote(p.id)}
+                >
+                  <ResultDetails
+                    sets={r?.sets || []}
+                    winner={winner}
+                    isAdmin={isAdmin}
+                    onSaveScore={sets => upsertSingles(p.id, scored(sets))}
+                    onMark={outcome => upsertSingles(p.id, marked(r?.sets || [], outcome))}
+                    onClear={r ? () => saveResults(singlesResults.filter(x => x.playerId !== p.id), doublesResults) : undefined}
+                    onClose={() => setExpandedKey(null)}
+                  />
+                </LineupRow>
+              );
+            })}
           </div>
         </div>
         {doublesSorted.length > 0 && (
           <div className="flex flex-col gap-1.5">
             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Doubles</span>
             <div className="flex flex-col gap-1.5">
-              {doublesPairs.map(pair => {
-                const candidateId = pairCandidateId(pair.ids);
+              {doublesResults.map((r, index) => {
+                const candidateId = pairCandidateId(r.playerIds);
+                const winner = resultWinner(r);
                 return (
                   <LineupRow
                     key={candidateId}
-                    players={pair.players}
-                    showResult={isCompleted}
-                    result={toResult(pair.sets)}
+                    players={r.playerIds.map(playerById).filter((p): p is Player => !!p)}
+                    isCompleted={isCompleted}
+                    result={toResult(r)}
+                    expandable={isCompleted && (isAdmin || !!winner)}
+                    expanded={expandedKey === candidateId}
+                    onToggle={() => toggleExpanded(candidateId)}
                     canVote={canVote}
                     isMyVote={myVote?.playerId === candidateId}
                     hasVoted={!!myVote}
                     onVote={() => handleVote(candidateId)}
-                  />
+                  >
+                    <ResultDetails
+                      sets={r.sets}
+                      winner={winner}
+                      isAdmin={isAdmin}
+                      onSaveScore={sets => replaceDoubles(index, { playerIds: r.playerIds, ...scored(sets) })}
+                      onMark={outcome => replaceDoubles(index, { playerIds: r.playerIds, ...marked(r.sets, outcome) })}
+                      onClear={winner ? () => replaceDoubles(index, { playerIds: r.playerIds, sets: [] }) : undefined}
+                      onUnpair={() => replaceDoubles(index, null)}
+                      onClose={() => setExpandedKey(null)}
+                    />
+                  </LineupRow>
                 );
               })}
               {unpairedDoubles.map(p => (
                 <LineupRow
                   key={p.id}
                   players={[p]}
-                  showResult={isCompleted}
+                  isCompleted={isCompleted}
+                  expandable={false}
+                  expanded={false}
+                  onToggle={() => {}}
                   canVote={canVote}
                   isMyVote={myVote?.playerId === p.id}
                   hasVoted={!!myVote}
                   onVote={() => handleVote(p.id)}
                 />
               ))}
+              {isAdmin && isCompleted && doublesResults.length < 3 && (
+                <AddDoublesPairing
+                  candidates={unpairedDoubles}
+                  onAdd={playerIds => saveResults(singlesResults, [...doublesResults, { playerIds, sets: [] }])}
+                />
+              )}
             </div>
           </div>
         )}
